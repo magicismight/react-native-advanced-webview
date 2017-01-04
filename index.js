@@ -1,8 +1,11 @@
 import React, { PropTypes, cloneElement } from 'react';
-import { WebView, requireNativeComponent } from 'react-native';
+import { WebView, UIManager } from 'react-native';
+import createReactNativeComponentClass from 'react-native/Libraries/Renderer/src/renderers/native/createReactNativeComponentClass';
 
-export default class AdvancedWebView extends WebView {
-    static displayName = 'AdvancedWebview';
+export default class extends WebView {
+
+    static displayName = 'AdvancedWebView';
+
     static propTypes = {
         ...WebView.propTypes,
         initialJavaScript: PropTypes.string,
@@ -12,13 +15,12 @@ export default class AdvancedWebView extends WebView {
     render() {
         const wrapper = super.render();
         const [webview,...children] = wrapper.props.children;
-        const { allowFileAccessFromFileURLs, initialJavaScript } = this.props;
 
         const advancedWebview = (
             <RNAdvancedWebView
                 {...webview.props}
-                initialJavaScript={initialJavaScript}
-                allowFileAccessFromFileURLs={allowFileAccessFromFileURLs}
+                initialJavaScript={this.props.initialJavaScript}
+                allowFileAccessFromFileURLs={this.props.allowFileAccessFromFileURLs}
             />
         );
 
@@ -26,8 +28,11 @@ export default class AdvancedWebView extends WebView {
     }
 }
 
-const RNAdvancedWebView = requireNativeComponent('RNAdvancedWebView', AdvancedWebView, {
-    nativeOnly: {
-        messagingEnabled: PropTypes.bool
-    }
+const RNAdvancedWebView = createReactNativeComponentClass({
+    validAttributes: {
+        ...UIManager.RCTWebView.validAttributes,
+        initialJavaScript: true,
+        allowFileAccessFromFileURLs: true
+    },
+    uiViewClassName: 'RNAdvancedWebView'
 });

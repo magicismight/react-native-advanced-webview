@@ -23,7 +23,7 @@ export default class webview extends Component {
                 ref="webviewbridge"
                 initialJavaScript={initialJavaScript}
                 injectedJavaScript={injectedJavaScript}
-                source={{uri: 'http://shimo.im'}}
+                source={{uri: 'https://shimo.im'}}
             />
         );
     }
