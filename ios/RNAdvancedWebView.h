@@ -1,5 +1,4 @@
-
-#import "RCTWebView.h"
+#import <React/RCTWebView.h>
 
 @interface RNAdvancedWebView : RCTWebView
 
