@@ -1,5 +1,5 @@
 import React, { PropTypes, cloneElement } from 'react';
-import { WebView, UIManager } from 'react-native';
+import { WebView, UIManager, NativeModules } from 'react-native';
 import createReactNativeComponentClass from 'react-native/Libraries/Renderer/src/renderers/native/createReactNativeComponentClass';
 
 export default class extends WebView {
@@ -12,6 +12,13 @@ export default class extends WebView {
         allowFileAccessFromFileURLs: PropTypes.bool
     };
 
+    async evaluateJavaScript(script: string): Promise<any> {
+        const escaped = JSON.stringify(script).replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
+        const wrapped = 'JSON.stringify(eval(' + escaped + '))';
+        const resultString = await NativeModules.RNAdvancedWebViewManager.evaluateJavaScript(this.getWebViewHandle(), wrapped);
+        return JSON.parse(resultString);
+    }
+
     render() {
         const wrapper = super.render();
         const [webview,...children] = wrapper.props.children;
@@ -19,6 +26,7 @@ export default class extends WebView {
         const advancedWebview = (
             <RNAdvancedWebView
                 {...webview.props}
+                ref="webview"
                 initialJavaScript={this.props.initialJavaScript}
                 allowFileAccessFromFileURLs={this.props.allowFileAccessFromFileURLs}
             />

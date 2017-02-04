@@ -4,4 +4,6 @@
 
 @property (nonatomic, copy) NSString *initialJavaScript;
 
+- (NSString *)evaluateJavaScript:(NSString *)script;
+
 @end
