@@ -3,6 +3,7 @@ package im.shimo.react.webview;
 import android.graphics.Bitmap;
 import android.os.Build;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.ViewGroup;
 import android.webkit.GeolocationPermissions;
 import android.webkit.WebChromeClient;
@@ -13,7 +14,6 @@ import com.facebook.react.uimanager.ThemedReactContext;
 import com.facebook.react.views.webview.ReactWebViewManager;
 import com.facebook.react.uimanager.annotations.ReactProp;
 import com.facebook.react.views.webview.WebViewConfig;
-import java.util.Map;
 
 import javax.annotation.Nullable;
 
@@ -36,6 +36,7 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
         public void onPageStarted(WebView webView, String url, Bitmap favicon) {
             AdvancedWebView advancedWebView = (AdvancedWebView) webView;
             advancedWebView.callInitialJavaScript();
+            Log.e("webview:", "start");
             super.onPageStarted(webView, url, favicon);
         }
     }
@@ -69,14 +70,6 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
     @Override
     public String getName() {
         return REACT_CLASS;
-    }
-
-    @Override
-    public
-    @Nullable
-    Map<String, Integer> getCommandsMap() {
-        Map<String, Integer> commandsMap = super.getCommandsMap();
-        return commandsMap;
     }
 
     @Override

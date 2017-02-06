@@ -13,7 +13,9 @@ import java.util.List;
 public class AdvancedWebViewPackage implements ReactPackage {
     @Override
     public List<NativeModule> createNativeModules(ReactApplicationContext reactApplicationContext) {
-        return Collections.emptyList();
+        return Arrays.<NativeModule>asList(
+                new AdvancedWebViewModule(reactApplicationContext)
+        );
     }
 
     @Override
