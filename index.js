@@ -12,6 +12,46 @@ export default class extends WebView {
         allowFileAccessFromFileURLs: PropTypes.bool
     };
 
+    goForward = () => {
+        UIManager.dispatchViewManagerCommand(
+            this.getWebViewHandle(),
+            UIManager.RNAdvancedWebView.Commands.goForward,
+            null
+        );
+    };
+
+    goBack = () => {
+        UIManager.dispatchViewManagerCommand(
+            this.getWebViewHandle(),
+            UIManager.RNAdvancedWebView.Commands.goBack,
+            null
+        );
+    };
+
+    reload = () => {
+        UIManager.dispatchViewManagerCommand(
+            this.getWebViewHandle(),
+            UIManager.RNAdvancedWebView.Commands.reload,
+            null
+        );
+    };
+
+    stopLoading = () => {
+        UIManager.dispatchViewManagerCommand(
+            this.getWebViewHandle(),
+            UIManager.RNAdvancedWebView.Commands.stopLoading,
+            null
+        );
+    };
+
+    postMessage = (data) => {
+        UIManager.dispatchViewManagerCommand(
+            this.getWebViewHandle(),
+            UIManager.RNAdvancedWebView.Commands.postMessage,
+            [String(data)]
+        );
+    };
+
     async evaluateJavaScript(script: string): Promise<any> {
         const escaped = JSON.stringify(script).replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
         const wrapped = 'JSON.stringify(eval(' + escaped + '))';
