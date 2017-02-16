@@ -17,6 +17,7 @@ RCT_EXPORT_MODULE()
 }
 
 RCT_EXPORT_VIEW_PROPERTY(initialJavaScript, NSString)
+RCT_EXPORT_VIEW_PROPERTY(enableMessageOnLoadStart, BOOL)
 
 RCT_REMAP_METHOD(evaluateJavaScript, evaluateJavaScript:(nonnull NSNumber *)reactTag script:(nonnull NSString *)script resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject)
 {
