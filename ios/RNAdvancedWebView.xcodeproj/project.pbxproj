@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		7F6E55141E1CA7E000C11C87 /* RNAdvancedWebViewManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 7F6E55131E1CA7E000C11C87 /* RNAdvancedWebViewManager.m */; };
 		7F6E55161E1CA8C400C11C87 /* RNAdvancedWebView.m in Sources */ = {isa = PBXBuildFile; fileRef = 7F6E55151E1CA8C400C11C87 /* RNAdvancedWebView.m */; };
+		7F857AD51E682BFA00FFDAE8 /* UIWebView+AccessoryHiding.m in Sources */ = {isa = PBXBuildFile; fileRef = 7F857AD41E682BFA00FFDAE8 /* UIWebView+AccessoryHiding.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -29,6 +30,8 @@
 		7F6E55131E1CA7E000C11C87 /* RNAdvancedWebViewManager.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = RNAdvancedWebViewManager.m; sourceTree = "<group>"; };
 		7F6E55151E1CA8C400C11C87 /* RNAdvancedWebView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = RNAdvancedWebView.m; sourceTree = "<group>"; };
 		7F6E55171E1CA8D000C11C87 /* RNAdvancedWebView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = RNAdvancedWebView.h; sourceTree = "<group>"; };
+		7F857AD41E682BFA00FFDAE8 /* UIWebView+AccessoryHiding.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "UIWebView+AccessoryHiding.m"; sourceTree = "<group>"; };
+		7F857AD61E682C0F00FFDAE8 /* UIWebView+AccessoryHiding.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "UIWebView+AccessoryHiding.h"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -45,6 +48,8 @@
 		101789271B283EE1006C41B8 = {
 			isa = PBXGroup;
 			children = (
+				7F857AD61E682C0F00FFDAE8 /* UIWebView+AccessoryHiding.h */,
+				7F857AD41E682BFA00FFDAE8 /* UIWebView+AccessoryHiding.m */,
 				7F6E55171E1CA8D000C11C87 /* RNAdvancedWebView.h */,
 				7F6E55151E1CA8C400C11C87 /* RNAdvancedWebView.m */,
 				7F6E55121E1CA7E000C11C87 /* RNAdvancedWebViewManager.h */,
@@ -117,6 +122,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7F857AD51E682BFA00FFDAE8 /* UIWebView+AccessoryHiding.m in Sources */,
 				7F6E55141E1CA7E000C11C87 /* RNAdvancedWebViewManager.m in Sources */,
 				7F6E55161E1CA8C400C11C87 /* RNAdvancedWebView.m in Sources */,
 			);
