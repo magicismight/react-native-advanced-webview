@@ -1,7 +1,5 @@
-
 #import "RNAdvancedWebView.h"
-
-
+#import "UIWebView+AccessoryHiding.h"
 
 @implementation RNAdvancedWebView
 {
@@ -11,8 +9,14 @@
 
 - (void)webViewDidStartLoad:(UIWebView *)webView
 {
-    _webView = webView;
-    
+    if (!_webView) {
+        _webView = webView;
+        
+        if (_hideAccessory) {
+            [webView setHackishlyHidesInputAccessoryView:YES];
+        }
+    }
+ 
     if (self.messagingEnabled && _enableMessageOnLoadStart) {
 
         // See isNative in lodash
