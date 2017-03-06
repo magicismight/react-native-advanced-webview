@@ -44,9 +44,4 @@
     }
 }
 
-- (NSString *)evaluateJavaScript:(NSString*)script
-{
-    return [_webView stringByEvaluatingJavaScriptFromString: script];
-}
-
 @end
