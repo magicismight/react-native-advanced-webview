@@ -54,12 +54,24 @@ export default class extends WebView {
         );
     };
 
-    async evaluateJavaScript(script: string): Promise<any> {
-        const escaped = JSON.stringify(script).replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
-        const wrapped = 'JSON.stringify(eval(' + escaped + '))';
-        const resultString = await NativeModules.RNAdvancedWebViewManager.evaluateJavaScript(this.getWebViewHandle(), wrapped);
-        return JSON.parse(resultString);
-    }
+    takeSnapshot = (options ?: {
+        x ?: number,
+        y ?: number,
+        width ?: number,
+        height ?: number,
+        format ?: 'png' | 'jpeg',
+        quality ?: number,
+    }) => {
+        return NativeModules.RNAdvancedWebViewManager.takeSnapshot(this.getWebViewHandle(), {...options});
+    };
+
+    injectJavaScript = (data) => {
+        UIManager.dispatchViewManagerCommand(
+            this.getWebViewHandle(),
+            UIManager.RNAdvancedWebView.Commands.injectJavaScript,
+            [data]
+        );
+    };
 
     render() {
         const wrapper = super.render();

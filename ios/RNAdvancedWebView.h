@@ -6,6 +6,6 @@
 @property (nonatomic, assign) BOOL enableMessageOnLoadStart;
 @property (nonatomic, assign) BOOL hideAccessory;
 
-- (NSString *)evaluateJavaScript:(NSString *)script;
+- (UIImage *)takeSnapshot:(CGRect)rect;
 
 @end
