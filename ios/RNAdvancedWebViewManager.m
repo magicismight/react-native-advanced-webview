@@ -17,7 +17,6 @@ RCT_EXPORT_MODULE()
 }
 
 RCT_EXPORT_VIEW_PROPERTY(initialJavaScript, NSString)
-RCT_EXPORT_VIEW_PROPERTY(enableMessageOnLoadStart, BOOL)
 RCT_EXPORT_VIEW_PROPERTY(hideAccessory, BOOL)
 
 

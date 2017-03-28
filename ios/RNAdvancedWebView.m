@@ -18,7 +18,7 @@
         }
     }
  
-    if (self.messagingEnabled && _enableMessageOnLoadStart) {
+    if (self.messagingEnabled) {
 
         // See isNative in lodash
         NSString *testPostMessageNative = @"String(window.postMessage) === String(Object.hasOwnProperty).replace('hasOwnProperty', 'postMessage')";
@@ -27,17 +27,32 @@
                                     isEqualToString:@"true"
                                     ];
         NSString *source = [NSString stringWithFormat:
-                            @"window.originalPostMessage = window.postMessage;"
+                            @"(function() {"
+                            "var messageStack = [];"
+                            "var executing = false;"
+                            "function executeStack() {"
+                            "  var message = messageStack.shift();"
+                            "  if (message) {"
+                            "    executing = true;"
+                            "    window.location = message;"
+                            "    setTimeout(executeStack);"
+                            "  } else {"
+                            "    executing = false;"
+                            "  }"
+                            "};"
+                            "window.originalPostMessage = window.postMessage;"
                             "window.postMessage = function(data) {"
-                            "window.location = '%@://%@?' + encodeURIComponent(String(data));"
+                            "  messageStack.push('%@://%@?' + encodeURIComponent(String(data)));"
+                            "  if (!executing) executeStack();"
                             "};"
                             "window.postMessage.toString = function () {"
                             "return String(Object.hasOwnProperty).replace('hasOwnProperty', 'postMessage');"
-                            "};", RCTJSNavigationScheme, @"postMessage"
+                            "};"
+                            "})();", RCTJSNavigationScheme, @"postMessage"
                             ];
         [webView stringByEvaluatingJavaScriptFromString:source];
 
-       
+        self.messagingEnabled = NO;
     }
     
     if (_initialJavaScript != nil) {
