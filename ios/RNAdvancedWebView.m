@@ -17,15 +17,24 @@
             [webView setHackishlyHidesInputAccessoryView:YES];
         }
     }
- 
+    
+    
+    [_webView setKeyboardDisplayRequiresUserAction:_keyboardDisplayRequiresUserAction];
+    
     if (self.messagingEnabled) {
 
+#if RCT_DEV
         // See isNative in lodash
         NSString *testPostMessageNative = @"String(window.postMessage) === String(Object.hasOwnProperty).replace('hasOwnProperty', 'postMessage')";
         BOOL postMessageIsNative = [
                                     [webView stringByEvaluatingJavaScriptFromString:testPostMessageNative]
                                     isEqualToString:@"true"
                                     ];
+        if (!postMessageIsNative) {
+            RCTLogError(@"Setting onMessage on a WebView overrides existing values of window.postMessage, but a previous value was defined");
+        }
+#endif
+        
         NSString *source = [NSString stringWithFormat:
                             @"(function() {"
                             "var messageStack = [];"
@@ -44,9 +53,6 @@
                             "window.postMessage = function(data) {"
                             "  messageStack.push('%@://%@?' + encodeURIComponent(String(data)));"
                             "  if (!executing) executeStack();"
-                            "};"
-                            "window.postMessage.toString = function () {"
-                            "return String(Object.hasOwnProperty).replace('hasOwnProperty', 'postMessage');"
                             "};"
                             "})();", RCTJSNavigationScheme, @"postMessage"
                             ];

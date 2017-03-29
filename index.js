@@ -9,6 +9,7 @@ export default class extends WebView {
     static propTypes = {
         ...WebView.propTypes,
         initialJavaScript: PropTypes.string,
+        keyboardDisplayRequiresUserAction: PropTypes.bool,
         allowFileAccessFromFileURLs: PropTypes.bool,
         hideAccessory: PropTypes.bool
     };
@@ -75,7 +76,7 @@ export default class extends WebView {
     render() {
         const wrapper = super.render();
         const [webview,...children] = wrapper.props.children;
-        const { hideAccessory, initialJavaScript, allowFileAccessFromFileURLs } = this.props;
+        const { hideAccessory, initialJavaScript, allowFileAccessFromFileURLs, keyboardDisplayRequiresUserAction } = this.props;
 
         const advancedWebview = (
             <RNAdvancedWebView
@@ -83,6 +84,7 @@ export default class extends WebView {
                 ref="webview"
                 initialJavaScript={initialJavaScript}
                 allowFileAccessFromFileURLs={allowFileAccessFromFileURLs}
+                keyboardDisplayRequiresUserAction={keyboardDisplayRequiresUserAction}
                 hideAccessory={hideAccessory}
             />
         );
@@ -96,7 +98,8 @@ const RNAdvancedWebView = createReactNativeComponentClass({
         ...UIManager.RCTWebView.validAttributes,
         initialJavaScript: true,
         allowFileAccessFromFileURLs: true,
-        hideAccessory: true
+        hideAccessory: true,
+        keyboardDisplayRequiresUserAction: true
     },
     uiViewClassName: 'RNAdvancedWebView'
 });
