@@ -73,6 +73,23 @@ export default class extends WebView {
         );
     };
 
+    _onLoadingError = (event: Event) => {
+        event.persist(); // persist this event because we need to store it
+        var {onError, onLoadEnd} = this.props;
+        var result = onError && onError(event);
+        onLoadEnd && onLoadEnd(event);
+        console.warn('Encountered an error loading page', event.nativeEvent);
+
+        result !== false && this.setState({
+            lastErrorEvent: event.nativeEvent,
+            viewState: WebViewState.ERROR
+        });
+    };
+
+    onLoadingError = (event: Event) => {
+        this._onLoadingError(event)
+    }
+
     render() {
         const wrapper = super.render();
         const [webview,...children] = wrapper.props.children;
