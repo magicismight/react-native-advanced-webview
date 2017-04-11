@@ -4,66 +4,18 @@
 
 @implementation RNAdvancedWebView
 {
-    NSString *_initialJavaScript;
     UIWebView *_webView;
 }
 
 - (void)webViewDidStartLoad:(UIWebView *)webView
 {
-    if (!_webView) {
-        _webView = webView;
-        
-        if (_hideAccessory) {
-            [webView setHackishlyHidesInputAccessoryView:YES];
-        }
+    _webView = webView;
+
+    if (_hideAccessory) {
+        [_webView setHackishlyHidesInputAccessoryView:YES];
     }
-    
-    
+
     [_webView setKeyboardDisplayRequiresUserAction:_keyboardDisplayRequiresUserAction];
-    
-    if (self.messagingEnabled) {
-
-#if RCT_DEV
-        // See isNative in lodash
-        NSString *testPostMessageNative = @"String(window.postMessage) === String(Object.hasOwnProperty).replace('hasOwnProperty', 'postMessage')";
-        BOOL postMessageIsNative = [
-                                    [webView stringByEvaluatingJavaScriptFromString:testPostMessageNative]
-                                    isEqualToString:@"true"
-                                    ];
-        if (!postMessageIsNative) {
-            RCTLogError(@"Setting onMessage on a WebView overrides existing values of window.postMessage, but a previous value was defined");
-        }
-#endif
-        
-        NSString *source = [NSString stringWithFormat:
-                            @"(function() {"
-                            "var messageStack = [];"
-                            "var executing = false;"
-                            "function executeStack() {"
-                            "  var message = messageStack.shift();"
-                            "  if (message) {"
-                            "    executing = true;"
-                            "    window.location = message;"
-                            "    setTimeout(executeStack);"
-                            "  } else {"
-                            "    executing = false;"
-                            "  }"
-                            "};"
-                            "window.originalPostMessage = window.postMessage;"
-                            "window.postMessage = function(data) {"
-                            "  messageStack.push('%@://%@?' + encodeURIComponent(String(data)));"
-                            "  if (!executing) executeStack();"
-                            "};"
-                            "})();", RCTJSNavigationScheme, @"postMessage"
-                            ];
-        [webView stringByEvaluatingJavaScriptFromString:source];
-
-        self.messagingEnabled = NO;
-    }
-    
-    if (_initialJavaScript != nil) {
-        [webView stringByEvaluatingJavaScriptFromString:_initialJavaScript];
-    }
 }
 
 - (UIImage *)takeSnapshot:(CGRect)rect
@@ -75,9 +27,9 @@
     CGSize contentSize = _webView.scrollView.contentSize;
     CGFloat contentHeight = contentSize.height;
     CGPoint offset = _webView.scrollView.contentOffset;
-    
+
     [_webView.scrollView setContentOffset:CGPointMake(0, 0)];
-    
+
     NSMutableArray *images = [NSMutableArray array];
     while (contentHeight > 0) {
         UIGraphicsBeginImageContextWithOptions(boundsSize, NO, 0.0);
@@ -85,14 +37,14 @@
         UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
         UIGraphicsEndImageContext();
         [images addObject:image];
-        
+
         CGFloat offsetY = _webView.scrollView.contentOffset.y;
         [_webView.scrollView setContentOffset:CGPointMake(0, offsetY + boundsHeight)];
         contentHeight -= boundsHeight;
     }
-    
+
     [_webView.scrollView setContentOffset:offset];
-    
+
     CGSize imageSize = CGSizeMake(contentSize.width * scale,
                                   contentSize.height * scale);
     UIGraphicsBeginImageContext(imageSize);
@@ -106,6 +58,5 @@
     UIGraphicsEndImageContext();
     return fullImage;
 }
-
 
 @end

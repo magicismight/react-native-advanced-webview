@@ -5,6 +5,7 @@
 #import <React/RCTUIManager.h>
 #import <React/RCTUtils.h>
 
+
 @implementation RNAdvancedWebViewManager
 
 RCT_EXPORT_MODULE()
@@ -16,7 +17,6 @@ RCT_EXPORT_MODULE()
     return webView;
 }
 
-RCT_EXPORT_VIEW_PROPERTY(initialJavaScript, NSString)
 RCT_EXPORT_VIEW_PROPERTY(hideAccessory, BOOL)
 RCT_EXPORT_VIEW_PROPERTY(keyboardDisplayRequiresUserAction, BOOL)
 
@@ -26,7 +26,7 @@ RCT_EXPORT_METHOD(takeSnapshot:(id /* NSString or NSNumber */)target
                   reject:(RCTPromiseRejectBlock)reject)
 {
     [self.bridge.uiManager addUIBlock:^(__unused RCTUIManager *uiManager, NSDictionary<NSNumber *, UIView *> *viewRegistry) {
-        
+
         // Get view
         UIView *view;
         if (target == nil || [target isEqual:@"window"]) {
@@ -41,30 +41,30 @@ RCT_EXPORT_METHOD(takeSnapshot:(id /* NSString or NSNumber */)target
                 return;
             }
         }
-        
+
         __weak RNAdvancedWebView *webview = view;
-        
+
         // Get options
         CGRect rect = [RCTConvert CGRect:options];
         NSString *format = [RCTConvert NSString:options[@"format"] ?: @"png"];
-        
+
         // Capture image
         if (rect.size.width < 0.1 || rect.size.height < 0.1) {
             rect = CGRectNull;
         }
-       
-        
+
+
         UIImage *image = [webview takeSnapshot:rect];
-        
-        
+
+
         if (!image) {
             reject(RCTErrorUnspecified, @"Failed to capture view snapshot.", nil);
             return;
         }
-        
+
         // Convert image to data (on a background thread)
         dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-            
+
             NSData *data;
             if ([format isEqualToString:@"png"]) {
                 data = UIImagePNGRepresentation(image);
@@ -75,7 +75,7 @@ RCT_EXPORT_METHOD(takeSnapshot:(id /* NSString or NSNumber */)target
                 RCTLogError(@"Unsupported image format: %@", format);
                 return;
             }
-            
+
             // Save to a temp file
             NSError *error = nil;
             NSString *tempFilePath = RCTTempFilePath(format, &error);
@@ -85,7 +85,7 @@ RCT_EXPORT_METHOD(takeSnapshot:(id /* NSString or NSNumber */)target
                     return;
                 }
             }
-            
+
             // If we reached here, something went wrong
             reject(RCTErrorUnspecified, error.localizedDescription, error);
         });
