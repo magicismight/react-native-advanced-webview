@@ -217,7 +217,7 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
         }
     }
     
-    if (_onLoadingStart) {
+    if (!isJSNavigation && _onLoadingStart) {
         // We have this check to filter out iframe requests and whatnot
         BOOL isTopFrame = [request.URL isEqual:request.mainDocumentURL];
         if (isTopFrame) {
