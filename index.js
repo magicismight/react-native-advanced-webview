@@ -8,9 +8,8 @@ export default class extends WebView {
 
     static propTypes = {
         ...WebView.propTypes,
-        initialJavaScript: PropTypes.string,
+        keyboardDisplayRequiresUserAction: PropTypes.bool,
         allowFileAccessFromFileURLs: PropTypes.bool,
-        enableMessageOnLoadStart: PropTypes.bool,
         hideAccessory: PropTypes.bool
     };
 
@@ -73,18 +72,34 @@ export default class extends WebView {
         );
     };
 
+    _onLoadingError = (event: Event) => {
+        event.persist(); // persist this event because we need to store it
+        var {onError, onLoadEnd} = this.props;
+        var result = onError && onError(event);
+        onLoadEnd && onLoadEnd(event);
+        console.warn('Encountered an error loading page', event.nativeEvent);
+
+        result !== false && this.setState({
+            lastErrorEvent: event.nativeEvent,
+            viewState: 'ERROR'
+        });
+    };
+
+    onLoadingError = (event: Event) => {
+        this._onLoadingError(event)
+    }
+
     render() {
         const wrapper = super.render();
         const [webview,...children] = wrapper.props.children;
-        const { hideAccessory, initialJavaScript, allowFileAccessFromFileURLs, enableMessageOnLoadStart } = this.props;
+        const { hideAccessory, allowFileAccessFromFileURLs, keyboardDisplayRequiresUserAction } = this.props;
 
         const advancedWebview = (
             <RNAdvancedWebView
                 {...webview.props}
                 ref="webview"
-                initialJavaScript={initialJavaScript}
                 allowFileAccessFromFileURLs={allowFileAccessFromFileURLs}
-                enableMessageOnLoadStart={enableMessageOnLoadStart}
+                keyboardDisplayRequiresUserAction={keyboardDisplayRequiresUserAction}
                 hideAccessory={hideAccessory}
             />
         );
@@ -96,10 +111,9 @@ export default class extends WebView {
 const RNAdvancedWebView = createReactNativeComponentClass({
     validAttributes: {
         ...UIManager.RCTWebView.validAttributes,
-        initialJavaScript: true,
         allowFileAccessFromFileURLs: true,
-        enableMessageOnLoadStart: true,
-        hideAccessory: true
+        hideAccessory: true,
+        keyboardDisplayRequiresUserAction: true
     },
     uiViewClassName: 'RNAdvancedWebView'
 });
