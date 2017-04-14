@@ -120,6 +120,14 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
             [_webView loadHTMLString:@"" baseURL:nil];
             return;
         }
+        
+        // Decode query string and hash in local file path
+        if (request.URL.isFileURL) {
+            NSMutableURLRequest *mutableRequst = [request mutableCopy];
+            mutableRequst.URL = [NSURL URLWithString:[request.URL.absoluteString stringByReplacingPercentEscapesUsingEncoding:NSUTF8StringEncoding]];
+            request = [mutableRequst copy];
+        }
+        
         [_webView loadRequest:request];
     }
 }
@@ -248,7 +256,6 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
 
 - (void)webView:(__unused UIWebView *)webView didFailLoadWithError:(NSError *)error
 {
-    NSLog(@"%@", error);
     if (_onLoadingError) {
         if ([error.domain isEqualToString:NSURLErrorDomain] && error.code == NSURLErrorCancelled) {
             // NSURLErrorCancelled is reported when a page has a redirect OR if you load
