@@ -348,6 +348,7 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
                             "  messageStack.push('%@://%@?' + encodeURIComponent(String(data)));"
                             "  if (!executing) executeStack();"
                             "};"
+                            "document.dispatchEvent(new CustomEvent('ReactNativeContextReady'));"
                             "})();", RNJSNavigationScheme, @"postMessage"
                             ];
 
