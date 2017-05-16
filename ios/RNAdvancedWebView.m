@@ -95,7 +95,7 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
 {
     if (![_source isEqualToDictionary:source]) {
         _source = [source copy];
-        
+
         // Check for a static html source first
         NSString *html = [RCTConvert NSString:source[@"html"]];
         if (html) {
@@ -106,7 +106,16 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
             [_webView loadHTMLString:html baseURL:baseURL];
             return;
         }
-        
+
+        // Decode query string and hash in local file path
+        NSString *URLString = source[@"uri"] ?: source[@"url"];
+        if ([URLString hasPrefix:@"/"] || [URLString hasPrefix:@"file:///"]) {
+            source = @{
+                       @"uri": [URLString stringByReplacingPercentEscapesUsingEncoding:NSUTF8StringEncoding]
+                       };
+        }
+
+
         NSURLRequest *request = [RCTConvert NSURLRequest:source];
         // Because of the way React works, as pages redirect, we actually end up
         // passing the redirect urls back here, so we ignore them if trying to load
@@ -120,14 +129,7 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
             [_webView loadHTMLString:@"" baseURL:nil];
             return;
         }
-        
-        // Decode query string and hash in local file path
-        if (request.URL.isFileURL) {
-            NSMutableURLRequest *mutableRequst = [request mutableCopy];
-            mutableRequst.URL = [NSURL URLWithString:[request.URL.absoluteString stringByReplacingPercentEscapesUsingEncoding:NSUTF8StringEncoding]];
-            request = [mutableRequst copy];
-        }
-        
+
         [_webView loadRequest:request];
     }
 }
@@ -180,7 +182,7 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
                                                                                                    @"canGoBack": @(_webView.canGoBack),
                                                                                                    @"canGoForward" : @(_webView.canGoForward),
                                                                                                    }];
-    
+
     return event;
 }
 
@@ -197,7 +199,7 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
  navigationType:(UIWebViewNavigationType)navigationType
 {
     BOOL isJSNavigation = [request.URL.scheme isEqualToString:RNJSNavigationScheme];
-    
+
     static NSDictionary<NSNumber *, NSString *> *navigationTypes;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
@@ -210,7 +212,7 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
                             @(UIWebViewNavigationTypeOther): @"other",
                             };
     });
-    
+
     // skip this for the JS Navigation handler
     if (!isJSNavigation && _onShouldStartLoadWithRequest) {
         NSMutableDictionary<NSString *, id> *event = [self baseEvent];
@@ -224,7 +226,7 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
             return NO;
         }
     }
-    
+
     if (!isJSNavigation && _onLoadingStart) {
         // We have this check to filter out iframe requests and whatnot
         BOOL isTopFrame = [request.URL isEqual:request.mainDocumentURL];
@@ -237,25 +239,26 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
             _onLoadingStart(event);
         }
     }
-    
+
     if (isJSNavigation && [request.URL.host isEqualToString:RNJSPostMessageHost]) {
         NSString *data = request.URL.query;
         data = [data stringByReplacingOccurrencesOfString:@"+" withString:@" "];
         data = [data stringByReplacingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
-        
+
         NSMutableDictionary<NSString *, id> *event = [self baseEvent];
         [event addEntriesFromDictionary: @{
                                            @"data": data,
                                            }];
         _onMessage(event);
     }
-    
+
     // JS Navigation handler
     return !isJSNavigation;
 }
 
 - (void)webView:(__unused UIWebView *)webView didFailLoadWithError:(NSError *)error
 {
+    NSLog(@"error: %@", error);
     if (_onLoadingError) {
         if ([error.domain isEqualToString:NSURLErrorDomain] && error.code == NSURLErrorCancelled) {
             // NSURLErrorCancelled is reported when a page has a redirect OR if you load
@@ -264,7 +267,7 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
             // http://stackoverflow.com/questions/1024748/how-do-i-fix-nsurlerrordomain-error-999-in-iphone-3-0-os
             return;
         }
-        
+
         NSMutableDictionary<NSString *, id> *event = [self baseEvent];
         [event addEntriesFromDictionary:@{
                                           @"domain": error.domain,
@@ -280,7 +283,7 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
     if (_hideAccessory) {
         [webView setHackishlyHidesInputAccessoryView:YES];
     }
-    
+
     [_webView setKeyboardDisplayRequiresUserAction:_keyboardDisplayRequiresUserAction];
 }
 
@@ -293,9 +296,9 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
     CGSize contentSize = _webView.scrollView.contentSize;
     CGFloat contentHeight = contentSize.height;
     CGPoint offset = _webView.scrollView.contentOffset;
-    
+
     [_webView.scrollView setContentOffset:CGPointMake(0, 0)];
-    
+
     NSMutableArray *images = [NSMutableArray array];
     while (contentHeight > 0) {
         UIGraphicsBeginImageContextWithOptions(boundsSize, NO, 0.0);
@@ -303,14 +306,14 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
         UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
         UIGraphicsEndImageContext();
         [images addObject:image];
-        
+
         CGFloat offsetY = _webView.scrollView.contentOffset.y;
         [_webView.scrollView setContentOffset:CGPointMake(0, offsetY + boundsHeight)];
         contentHeight -= boundsHeight;
     }
-    
+
     [_webView.scrollView setContentOffset:offset];
-    
+
     CGSize imageSize = CGSizeMake(contentSize.width * scale,
                                   contentSize.height * scale);
     UIGraphicsBeginImageContext(imageSize);
@@ -348,6 +351,7 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
                             "  messageStack.push('%@://%@?' + encodeURIComponent(String(data)));"
                             "  if (!executing) executeStack();"
                             "};"
+                            "document.dispatchEvent(new CustomEvent('ReactNativeContextReady'));"
                             "})();", RNJSNavigationScheme, @"postMessage"
                             ];
 
@@ -355,10 +359,10 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
     }
     if (_injectedJavaScript != nil) {
         NSString *jsEvaluationValue = [webView stringByEvaluatingJavaScriptFromString:_injectedJavaScript];
-        
+
         NSMutableDictionary<NSString *, id> *event = [self baseEvent];
         event[@"jsEvaluationValue"] = jsEvaluationValue;
-        
+
         _onLoadingFinish(event);
     }
     // we only need the final 'finishLoad' call so only fire the event when we're actually done loading.
