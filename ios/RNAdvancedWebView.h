@@ -31,7 +31,6 @@ shouldStartLoadForRequest:(NSMutableDictionary<NSString *, id> *)request
 @property (nonatomic, assign) BOOL hideAccessory;
 @property (nonatomic, assign) BOOL keyboardDisplayRequiresUserAction;
 
-- (UIImage *)takeSnapshot:(CGRect)rect;
 - (void)goForward;
 - (void)goBack;
 - (void)reload;
