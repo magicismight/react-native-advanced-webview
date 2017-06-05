@@ -1,25 +1,24 @@
 package im.shimo.react.webview;
 
-import android.graphics.Bitmap;
 import android.os.Build;
-import android.text.TextUtils;
-import android.util.Log;
 import android.view.ViewGroup;
 import android.webkit.GeolocationPermissions;
+import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebView;
 
+import com.facebook.common.logging.FLog;
+import com.facebook.react.common.ReactConstants;
 import com.facebook.react.common.build.ReactBuildConfig;
 import com.facebook.react.uimanager.ThemedReactContext;
 import com.facebook.react.views.webview.ReactWebViewManager;
 import com.facebook.react.uimanager.annotations.ReactProp;
 import com.facebook.react.views.webview.WebViewConfig;
 
-import javax.annotation.Nullable;
-
 public class AdvancedWebViewManager extends ReactWebViewManager {
 
     private static final String REACT_CLASS = "RNAdvancedWebView";
+    private static final String BRIDGE_NAME = "__REACT_WEB_VIEW_BRIDGE";
 
     private WebViewConfig mWebViewConfig;
 
@@ -31,41 +30,47 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
         };
     }
 
-    protected static class AdvancedWebViewClient extends ReactWebViewClient {
-        @Override
-        public void onPageStarted(WebView webView, String url, Bitmap favicon) {
-            AdvancedWebView advancedWebView = (AdvancedWebView) webView;
-            advancedWebView.callInitialJavaScript();
-            Log.e("webview:", "start");
-            super.onPageStarted(webView, url, favicon);
-        }
-    }
-
     protected static class AdvancedWebView extends ReactWebView {
+        private boolean messagingEnabled = false;
 
         public AdvancedWebView(ThemedReactContext reactContext) {
             super(reactContext);
         }
 
-        private @Nullable String mInitialJS;
-
-        public void setInitialJavaScript(@Nullable String js) {
-            mInitialJS = js;
+        @Override
+        public void setMessagingEnabled(boolean enabled) {
+            super.setMessagingEnabled(enabled);
+            messagingEnabled = enabled;
         }
 
-        public void callInitialJavaScript() {
-            if (getSettings().getJavaScriptEnabled() &&
-                    mInitialJS != null &&
-                    !TextUtils.isEmpty(mInitialJS)) {
-                loadUrl("javascript:(function() {\n" + mInitialJS + ";\n})();");
+        @Override
+        public void linkBridge() {
+            if (messagingEnabled) {
+                if (ReactBuildConfig.DEBUG && Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+                    // See isNative in lodash
+                    String testPostMessageNative = "String(window.postMessage) === String(Object.hasOwnProperty).replace('hasOwnProperty', 'postMessage')";
+                    evaluateJavascript(testPostMessageNative, new ValueCallback<String>() {
+                        @Override
+                        public void onReceiveValue(String value) {
+                            if (value.equals("true")) {
+                                FLog.w(ReactConstants.TAG, "Setting onMessage on a WebView overrides existing values of window.postMessage, but a previous value was defined");
+                            }
+                        }
+                    });
+                }
+
+                loadUrl("javascript:" +
+                        "(function () {" +
+                        "window.originalPostMessage = window.postMessage," +
+                        "window.postMessage = function(data) {" +
+                        BRIDGE_NAME + ".postMessage(String(data));" +
+                        "};" +
+                        "document.dispatchEvent(new CustomEvent('ReactNativeContextReady'));" +
+                        "})()");
             }
         }
     }
 
-    @ReactProp(name = "initialJavaScript")
-    public void setInitialJavaScript(WebView view, @Nullable String initialJavaScript) {
-        ((AdvancedWebView) view).setInitialJavaScript(initialJavaScript);
-    }
 
     @Override
     public String getName() {
@@ -104,9 +109,9 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
         root.getSettings().setAllowFileAccessFromFileURLs(allows);
     }
 
-    @Override
-    protected void addEventEmitters(ThemedReactContext reactContext, WebView view) {
-        // Do not register default touch emitter and let WebView implementation handle touches
-        view.setWebViewClient(new AdvancedWebViewClient());
+    @ReactProp(name = "messagingEnabled")
+    public void setMessagingEnabled(WebView view, boolean enabled) {
+
+        ((ReactWebView) view).setMessagingEnabled(enabled);
     }
 }

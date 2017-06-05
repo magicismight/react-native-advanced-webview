@@ -53,17 +53,6 @@ export default class extends WebView {
         );
     };
 
-    takeSnapshot = (options ?: {
-        x ?: number,
-        y ?: number,
-        width ?: number,
-        height ?: number,
-        format ?: 'png' | 'jpeg',
-        quality ?: number,
-    }) => {
-        return NativeModules.RNAdvancedWebViewManager.takeSnapshot(this.getWebViewHandle(), {...options});
-    };
-
     injectJavaScript = (data) => {
         UIManager.dispatchViewManagerCommand(
             this.getWebViewHandle(),
@@ -87,7 +76,7 @@ export default class extends WebView {
 
     onLoadingError = (event: Event) => {
         this._onLoadingError(event)
-    }
+    };
 
     render() {
         const wrapper = super.render();
