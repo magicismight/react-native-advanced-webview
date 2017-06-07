@@ -1,8 +1,11 @@
 package im.shimo.react.webview;
 
+import android.content.Context;
 import android.os.Build;
 import android.view.ViewGroup;
+import android.view.inputmethod.InputMethodManager;
 import android.webkit.GeolocationPermissions;
+import android.webkit.JavascriptInterface;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebView;
@@ -31,21 +34,49 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
     }
 
     protected static class AdvancedWebView extends ReactWebView {
-        private boolean messagingEnabled = false;
-
+        private boolean mMessagingEnabled = false;
+        private InputMethodManager mInputMethodManager = (InputMethodManager) getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
         public AdvancedWebView(ThemedReactContext reactContext) {
             super(reactContext);
         }
 
+        private class ReactWebViewBridge {
+            ReactWebView mContext;
+
+            ReactWebViewBridge(ReactWebView c) {
+                mContext = c;
+            }
+
+            @JavascriptInterface
+            public void postMessage(String message) {
+                mContext.onMessage(message);
+            }
+
+            @JavascriptInterface
+            public void showKeyboard() {
+                requestFocus();
+                mInputMethodManager.toggleSoftInput(InputMethodManager.SHOW_FORCED, InputMethodManager.HIDE_IMPLICIT_ONLY);
+            }
+        }
+
         @Override
         public void setMessagingEnabled(boolean enabled) {
-            super.setMessagingEnabled(enabled);
-            messagingEnabled = enabled;
+            if (mMessagingEnabled == enabled) {
+                return;
+            }
+
+            mMessagingEnabled = enabled;
+            if (enabled) {
+                addJavascriptInterface(new AdvancedWebView.ReactWebViewBridge(this), BRIDGE_NAME);
+                linkBridge();
+            } else {
+                removeJavascriptInterface(BRIDGE_NAME);
+            }
         }
 
         @Override
         public void linkBridge() {
-            if (messagingEnabled) {
+            if (mMessagingEnabled) {
                 if (ReactBuildConfig.DEBUG && Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
                     // See isNative in lodash
                     String testPostMessageNative = "String(window.postMessage) === String(Object.hasOwnProperty).replace('hasOwnProperty', 'postMessage')";
@@ -61,11 +92,30 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
 
                 loadUrl("javascript:" +
                         "(function () {" +
-                        "window.originalPostMessage = window.postMessage," +
-                        "window.postMessage = function(data) {" +
-                        BRIDGE_NAME + ".postMessage(String(data));" +
-                        "};" +
-                        "document.dispatchEvent(new CustomEvent('ReactNativeContextReady'));" +
+                        "   function isDescendant(parent, child) {" +
+                        "     var node = child.parentNode;" +
+                        "     while (node) {" +
+                        "         if (node == parent) {" +
+                        "             return true;" +
+                        "         }" +
+                        "         node = node.parentNode;" +
+                        "     }" +
+                        "     return false;" +
+                        "   }" +
+                        "   window.originalPostMessage = window.postMessage," +
+                        "   window.postMessage = function(data) {" +
+                                BRIDGE_NAME + ".postMessage(String(data));" +
+                        "   };" +
+                        "   var focus = HTMLElement.prototype.focus;" +
+                        "   HTMLElement.prototype.focus = function() {" +
+                        "       focus.call(this);" +
+                        "       var selection = document.getSelection();" +
+                        "       var anchorNode = selection && selection.anchorNode;" +
+                        "       if (anchorNode && isDescendant(this, anchorNode) || this === anchorNode) {" +
+                                    BRIDGE_NAME + ".showKeyboard();" + // Show soft input manually, can't show soft input via javascript
+                        "       }" +
+                        "   };" +
+                        "   document.dispatchEvent(new CustomEvent('ReactNativeContextReady'));" +
                         "})()");
             }
         }
@@ -109,9 +159,4 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
         root.getSettings().setAllowFileAccessFromFileURLs(allows);
     }
 
-    @ReactProp(name = "messagingEnabled")
-    public void setMessagingEnabled(WebView view, boolean enabled) {
-
-        ((ReactWebView) view).setMessagingEnabled(enabled);
-    }
 }
