@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+
+<script>
+    setTimeout(function () {
+        window.postMessage("asdasdsad");
+
+    }, 1000);
+
+
+    document.addEventListener('message', function (data) {
+        var text = document.createElement('span');
+        text.innerText = data;
+        document.body.appendChild(text);
+    });
+
+    setTimeout(function () {
+        window.postMessage("1");
+        window.postMessage("2");
+        window.postMessage("3");
+        window.postMessage("4");
+    }, 200);
+
+
+</script>
+</body>
+</html>

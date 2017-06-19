@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { AppRegistry, StyleSheet } from 'react-native';
+import { AppRegistry, StyleSheet, WebView } from 'react-native';
 
 import AdvancedWebView from 'react-native-advanced-webview';
 
@@ -11,19 +11,23 @@ document.body.appendChild(span)
 `;
 const injectedJavaScript = `
 document.write(document.cookie);
-`;
 
+`;
 
 export default class webview extends Component {
     render() {
+        setTimeout(() => {
+            this.refs.webview.postMessage("ADADASDASDA");
+        }, 1000);
 
         return (
             <AdvancedWebView
                 style={styles.webview}
-                ref="webviewbridge"
+                ref="webview"
                 initialJavaScript={initialJavaScript}
-                injectedJavaScript={injectedJavaScript}
-                source={{uri: 'https://shimo.im'}}
+
+                source={require('./test.html')}
+                onMessage={(e) => console.log('message', e.nativeEvent.data)}
             />
         );
     }
