@@ -29,6 +29,94 @@ NSString *const RNAdvancedWebViewJSPostMessageHost = @"postMessage";
     [super setSource:source];
 }
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+
+- (NSMutableDictionary<NSString *, id> *)getBaseEvent
+{
+    SEL selector = NSSelectorFromString(@"baseEvent");
+    if ([self respondsToSelector:selector]) {
+        return [self performSelector:selector];
+    }
+    return nil;
+}
+
+#pragma clang diagnostic pop
+
+- (RCTDirectEventBlock)getEventBlock:(NSString *)key
+{
+    return (RCTDirectEventBlock)[self valueForKey:key];
+}
+
+#pragma mark - UIWebViewDelegate methods
+
+- (BOOL)webView:(__unused UIWebView *)webView shouldStartLoadWithRequest:(NSURLRequest *)request
+ navigationType:(UIWebViewNavigationType)navigationType
+{
+    BOOL isJSNavigation = [request.URL.scheme isEqualToString:RNAdvancedWebJSNavigationScheme];
+    
+    static NSDictionary<NSNumber *, NSString *> *navigationTypes;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        navigationTypes = @{
+                            @(UIWebViewNavigationTypeLinkClicked): @"click",
+                            @(UIWebViewNavigationTypeFormSubmitted): @"formsubmit",
+                            @(UIWebViewNavigationTypeBackForward): @"backforward",
+                            @(UIWebViewNavigationTypeReload): @"reload",
+                            @(UIWebViewNavigationTypeFormResubmitted): @"formresubmit",
+                            @(UIWebViewNavigationTypeOther): @"other",
+                            };
+    });
+    
+    
+    RCTDirectEventBlock onShouldStartLoadWithRequest = [self getEventBlock:@"onShouldStartLoadWithRequest"];
+    // skip this for the JS Navigation handler
+    
+    if (!isJSNavigation && onShouldStartLoadWithRequest) {
+        NSMutableDictionary<NSString *, id> *event = [self getBaseEvent];
+        [event addEntriesFromDictionary: @{
+                                           @"url": (request.URL).absoluteString,
+                                           @"navigationType": navigationTypes[@(navigationType)]
+                                           }];
+        if (![self.delegate webView:self
+          shouldStartLoadForRequest:event
+                       withCallback:onShouldStartLoadWithRequest]) {
+            return NO;
+        }
+    }
+    
+    
+    RCTDirectEventBlock onLoadingStart = [self getEventBlock:@"onLoadingStart"];
+    if (!isJSNavigation && onLoadingStart) {
+        // We have this check to filter out iframe requests and whatnot
+        BOOL isTopFrame = [request.URL isEqual:request.mainDocumentURL];
+        if (isTopFrame) {
+            NSMutableDictionary<NSString *, id> *event = [self getBaseEvent];
+            [event addEntriesFromDictionary: @{
+                                               @"url": (request.URL).absoluteString,
+                                               @"navigationType": navigationTypes[@(navigationType)]
+                                               }];
+            onLoadingStart(event);
+        }
+    }
+    
+    RCTDirectEventBlock onMessage = [self getEventBlock:@"onMessage"];
+    if (isJSNavigation && [request.URL.host isEqualToString:RNAdvancedWebViewJSPostMessageHost]) {
+        NSString *data = request.URL.query;
+        data = [data stringByReplacingOccurrencesOfString:@"+" withString:@" "];
+        data = [data stringByReplacingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
+        
+        NSMutableDictionary<NSString *, id> *event = [self getBaseEvent];
+        [event addEntriesFromDictionary: @{
+                                           @"data": data,
+                                           }];
+        onMessage(event);
+    }
+    
+    // JS Navigation handler
+    return !isJSNavigation;
+}
+
 - (void)webViewDidFinishLoad:(UIWebView *)webView
 {
     if (self.messagingEnabled) {
@@ -65,16 +153,11 @@ NSString *const RNAdvancedWebViewJSPostMessageHost = @"postMessage";
                             "document.dispatchEvent(new CustomEvent('ReactNativeContextReady'));"
                             "})();", RNAdvancedWebJSNavigationScheme, RNAdvancedWebViewJSPostMessageHost
                             ];
-
+        
         [webView stringByEvaluatingJavaScriptFromString:source];
     }
     
-    SEL baseEvent = NSSelectorFromString(@"baseEvent");
-    if (![self respondsToSelector:baseEvent]) {
-        return;
-    }
-    
-    RCTDirectEventBlock onLoadingFinish = (RCTDirectEventBlock)[self valueForKey:@"onLoadingFinish"];
+    RCTDirectEventBlock onLoadingFinish = [self getEventBlock:@"onLoadingFinish"];
     if (!onLoadingFinish) {
         return;
     }
@@ -82,15 +165,14 @@ NSString *const RNAdvancedWebViewJSPostMessageHost = @"postMessage";
     NSString *injectedJavaScript = (NSString *)[self valueForKey:@"_injectedJavaScript"];
     if (injectedJavaScript && [injectedJavaScript isKindOfClass:[NSString class]]) {
         NSString *jsEvaluationValue = [webView stringByEvaluatingJavaScriptFromString:injectedJavaScript];
-        NSMutableDictionary<NSString *, id> *event = [self performSelector:baseEvent];
+        NSMutableDictionary<NSString *, id> *event = [self getBaseEvent];
         event[@"jsEvaluationValue"] = jsEvaluationValue;
         onLoadingFinish(event);
     }
     // we only need the final 'finishLoad' call so only fire the event when we're actually done loading.
     else if (!webView.loading && ![webView.request.URL.absoluteString isEqualToString:@"about:blank"]) {
-        onLoadingFinish([self performSelector:baseEvent]);
+        onLoadingFinish([self getBaseEvent]);
     }
 }
-
 
 @end
