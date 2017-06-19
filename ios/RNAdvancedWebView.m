@@ -16,6 +16,19 @@ NSString *const RNAdvancedWebViewJSPostMessageHost = @"postMessage";
     [webView setKeyboardDisplayRequiresUserAction:_keyboardDisplayRequiresUserAction];
 }
 
+- (void)setSource:(NSDictionary *)source
+{
+    // Decode query string and hash in local file path
+    NSString *URLString = source[@"uri"] ?: source[@"url"];
+    if ([URLString hasPrefix:@"/"] || [URLString hasPrefix:@"file:///"]) {
+        source = @{
+                   @"uri": [URLString stringByReplacingPercentEscapesUsingEncoding:NSUTF8StringEncoding]
+                   };
+    }
+    
+    [super setSource:source];
+}
+
 - (void)webViewDidFinishLoad:(UIWebView *)webView
 {
     if (self.messagingEnabled) {
@@ -49,9 +62,7 @@ NSString *const RNAdvancedWebViewJSPostMessageHost = @"postMessage";
                             "  messageStack.push('%@://%@?' + encodeURIComponent(String(data)));"
                             "  if (!executing) executeStack();"
                             "};"
-                            "window.postMessage.toString = function () {"
-                            "return String(Object.hasOwnProperty).replace('hasOwnProperty', 'postMessage');"
-                            "};"
+                            "document.dispatchEvent(new CustomEvent('ReactNativeContextReady'));"
                             "})();", RNAdvancedWebJSNavigationScheme, RNAdvancedWebViewJSPostMessageHost
                             ];
 
