@@ -1,15 +1,11 @@
 #import "RNAdvancedWebView.h"
 #import "UIWebView+AccessoryHiding.h"
-#import "RCTUIManager.h"
+#import <React/RCTUIManager.h>
 
 NSString *const RNAdvancedWebJSNavigationScheme = @"react-js-navigation";
 NSString *const RNAdvancedWebViewJSPostMessageHost = @"postMessage";
 
 @implementation RNAdvancedWebView
-{
-    NSString *_initialJavaScript;
-    UIWebView *_webView;
-}
 
 - (void)webViewDidStartLoad:(UIWebView *)webView
 {
@@ -17,7 +13,7 @@ NSString *const RNAdvancedWebViewJSPostMessageHost = @"postMessage";
         [webView setHackishlyHidesInputAccessoryView:YES];
     }
     
-    [_webView setKeyboardDisplayRequiresUserAction:_keyboardDisplayRequiresUserAction];
+    [webView setKeyboardDisplayRequiresUserAction:_keyboardDisplayRequiresUserAction];
 }
 
 - (void)webViewDidFinishLoad:(UIWebView *)webView
@@ -62,22 +58,26 @@ NSString *const RNAdvancedWebViewJSPostMessageHost = @"postMessage";
         [webView stringByEvaluatingJavaScriptFromString:source];
     }
     
-    NSString *injectedJavaScript = (NSString *)[self valueForKey:@"_injectedJavaScript"];
-    RCTDirectEventBlock onLoadingFinish = (RCTDirectEventBlock)[self valueForKey:@"onLoadingFinish"];
+    SEL baseEvent = NSSelectorFromString(@"baseEvent");
+    if (![self respondsToSelector:baseEvent]) {
+        return;
+    }
     
-    if (injectedJavaScript != nil && [injectedJavaScript isKindOfClass:[NSString class]]) {
+    RCTDirectEventBlock onLoadingFinish = (RCTDirectEventBlock)[self valueForKey:@"onLoadingFinish"];
+    if (!onLoadingFinish) {
+        return;
+    }
+    
+    NSString *injectedJavaScript = (NSString *)[self valueForKey:@"_injectedJavaScript"];
+    if (injectedJavaScript && [injectedJavaScript isKindOfClass:[NSString class]]) {
         NSString *jsEvaluationValue = [webView stringByEvaluatingJavaScriptFromString:injectedJavaScript];
-        
-        NSMutableDictionary<NSString *, id> *event = [self performSelector:@selector(baseEvent)];
+        NSMutableDictionary<NSString *, id> *event = [self performSelector:baseEvent];
         event[@"jsEvaluationValue"] = jsEvaluationValue;
-        
-        
-        RCTDirectEventBlock onLoadingFinish = (RCTDirectEventBlock)[self valueForKey:@"onLoadingFinish"];
         onLoadingFinish(event);
     }
     // we only need the final 'finishLoad' call so only fire the event when we're actually done loading.
-    else if (onLoadingFinish && !webView.loading && ![webView.request.URL.absoluteString isEqualToString:@"about:blank"]) {
-        onLoadingFinish([self performSelector:@selector(baseEvent)]);
+    else if (!webView.loading && ![webView.request.URL.absoluteString isEqualToString:@"about:blank"]) {
+        onLoadingFinish([self performSelector:baseEvent]);
     }
 }
 
