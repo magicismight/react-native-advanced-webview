@@ -54,8 +54,14 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
 
             @JavascriptInterface
             public void showKeyboard() {
-                requestFocus();
-                mInputMethodManager.toggleSoftInput(InputMethodManager.SHOW_FORCED, InputMethodManager.HIDE_IMPLICIT_ONLY);
+                AdvancedWebView.this.requestFocus();
+                mInputMethodManager.showSoftInput(AdvancedWebView.this, InputMethodManager.SHOW_IMPLICIT);
+            }
+
+            @JavascriptInterface
+            public void hideKeyboard() {
+                AdvancedWebView.this.clearFocus();
+                mInputMethodManager.hideSoftInputFromWindow(AdvancedWebView.this.getWindowToken(), InputMethodManager.HIDE_NOT_ALWAYS);
             }
         }
 
@@ -114,6 +120,11 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
                         "       if (anchorNode && isDescendant(this, anchorNode) || this === anchorNode) {" +
                                     BRIDGE_NAME + ".showKeyboard();" + // Show soft input manually, can't show soft input via javascript
                         "       }" +
+                        "   };" +
+                        "   var blur = HTMLElement.prototype.blur;" +
+                        "   HTMLElement.prototype.blur = function() {" +
+                               BRIDGE_NAME + ".hideKeyboard();" +
+                        "      blur.call(this);" +
                         "   };" +
                         "   document.dispatchEvent(new CustomEvent('ReactNativeContextReady'));" +
                         "})()");
