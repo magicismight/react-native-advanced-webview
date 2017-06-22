@@ -2,6 +2,7 @@ package im.shimo.react.webview;
 
 import android.content.Context;
 import android.os.Build;
+import android.util.Log;
 import android.view.ViewGroup;
 import android.view.inputmethod.InputMethodManager;
 import android.webkit.GeolocationPermissions;
@@ -11,9 +12,14 @@ import android.webkit.WebChromeClient;
 import android.webkit.WebView;
 
 import com.facebook.common.logging.FLog;
+import com.facebook.react.bridge.NativeModule;
+import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.common.ReactConstants;
 import com.facebook.react.common.build.ReactBuildConfig;
+import com.facebook.react.uimanager.NativeViewHierarchyManager;
 import com.facebook.react.uimanager.ThemedReactContext;
+import com.facebook.react.uimanager.UIBlock;
+import com.facebook.react.uimanager.UIManagerModule;
 import com.facebook.react.views.webview.ReactWebViewManager;
 import com.facebook.react.uimanager.annotations.ReactProp;
 import com.facebook.react.views.webview.WebViewConfig;
@@ -36,8 +42,11 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
     protected static class AdvancedWebView extends ReactWebView {
         private boolean mMessagingEnabled = false;
         private InputMethodManager mInputMethodManager = (InputMethodManager) getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
+        private UIManagerModule mNativeModule;
+
         public AdvancedWebView(ThemedReactContext reactContext) {
             super(reactContext);
+            mNativeModule = reactContext.getNativeModule(UIManagerModule.class);
         }
 
         private class ReactWebViewBridge {
@@ -54,14 +63,25 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
 
             @JavascriptInterface
             public void showKeyboard() {
-                AdvancedWebView.this.requestFocus();
-                mInputMethodManager.showSoftInput(AdvancedWebView.this, InputMethodManager.SHOW_IMPLICIT);
+                mNativeModule.addUIBlock(new UIBlock() {
+                    @Override
+                    public void execute(NativeViewHierarchyManager nativeViewHierarchyManager) {
+                        AdvancedWebView.this.requestFocus();
+                        mInputMethodManager.showSoftInput(AdvancedWebView.this, InputMethodManager.SHOW_IMPLICIT);
+                    }
+                });
             }
 
             @JavascriptInterface
             public void hideKeyboard() {
-                AdvancedWebView.this.clearFocus();
-                mInputMethodManager.hideSoftInputFromWindow(AdvancedWebView.this.getWindowToken(), InputMethodManager.HIDE_NOT_ALWAYS);
+                mNativeModule.addUIBlock(new UIBlock() {
+                    @Override
+                    public void execute(NativeViewHierarchyManager nativeViewHierarchyManager) {
+                        mInputMethodManager.hideSoftInputFromWindow(AdvancedWebView.this.getWindowToken(), InputMethodManager.HIDE_NOT_ALWAYS);
+
+                    }
+                });
+
             }
         }
 
@@ -123,8 +143,10 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
                         "   };" +
                         "   var blur = HTMLElement.prototype.blur;" +
                         "   HTMLElement.prototype.blur = function() {" +
-                               BRIDGE_NAME + ".hideKeyboard();" +
-                        "      blur.call(this);" +
+                        "       if (isDescendant(document.activeElement, this)) {" +
+                                    BRIDGE_NAME + ".hideKeyboard();" +
+                        "       }" +
+                        "       blur.call(this);" +
                         "   };" +
                         "   document.dispatchEvent(new CustomEvent('ReactNativeContextReady'));" +
                         "})()");
