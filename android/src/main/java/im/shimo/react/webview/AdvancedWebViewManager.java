@@ -187,6 +187,21 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
         return webView;
     }
 
+    protected static class AdvancedWebViewClient extends ReactWebViewClient {
+        @Override
+        public void doUpdateVisitedHistory(WebView webView, String url, boolean isReload) {
+            if (isReload) {
+                super.doUpdateVisitedHistory(webView, url, true);
+            }
+        }
+    }
+
+    @Override
+    protected void addEventEmitters(ThemedReactContext reactContext, WebView view) {
+        // Do not register default touch emitter and let WebView implementation handle touches
+        view.setWebViewClient(new AdvancedWebViewClient());
+    }
+
     @ReactProp(name = "allowFileAccessFromFileURLs")
     public void setAllowFileAccessFromFileURLs(WebView root, boolean allows) {
         root.getSettings().setAllowFileAccessFromFileURLs(allows);
