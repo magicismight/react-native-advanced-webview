@@ -78,7 +78,6 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
                     @Override
                     public void execute(NativeViewHierarchyManager nativeViewHierarchyManager) {
                         mInputMethodManager.hideSoftInputFromWindow(AdvancedWebView.this.getWindowToken(), InputMethodManager.HIDE_NOT_ALWAYS);
-
                     }
                 });
 
@@ -94,7 +93,6 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
             mMessagingEnabled = enabled;
             if (enabled) {
                 addJavascriptInterface(new AdvancedWebView.ReactWebViewBridge(this), BRIDGE_NAME);
-                linkBridge();
             } else {
                 removeJavascriptInterface(BRIDGE_NAME);
             }
@@ -118,6 +116,7 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
 
                 loadUrl("javascript:" +
                         "(function () {" +
+                        "   if (window.originalPostMessage) {return;}" +
                         "   function isDescendant(parent, child) {" +
                         "     var node = child.parentNode;" +
                         "     while (node) {" +
