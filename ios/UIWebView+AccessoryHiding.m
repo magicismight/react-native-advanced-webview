@@ -33,22 +33,21 @@ static Class hackishFixClass = Nil;
     }
 }
 
-- (BOOL) hackishlyHidesInputAccessoryView {
+- (BOOL)hackishlyHidesInputAccessoryView {
     UIView *browserView = [self hackishlyFoundBrowserView];
     return [browserView class] == hackishFixClass;
 }
 
-- (void) setHackishlyHidesInputAccessoryView:(BOOL)value {
+- (void)setHackishlyHidesInputAccessoryView:(BOOL)value {
     UIView *browserView = [self hackishlyFoundBrowserView];
     if (browserView == nil) {
         return;
     }
     [self ensureHackishSubclassExistsOfBrowserViewClass:[browserView class]];
-    
+
     if (value) {
         object_setClass(browserView, hackishFixClass);
-    }
-    else {
+    } else {
         Class normalClass = objc_getClass("UIWebBrowserView");
         object_setClass(browserView, normalClass);
     }

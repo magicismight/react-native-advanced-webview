@@ -17,15 +17,17 @@ document.write(document.cookie);
 export default class webview extends Component {
     render() {
         setTimeout(() => {
-            this.refs.webview.postMessage("ADADASDASDA");
+            this.refs.webview.injectJavaScript(initialJavaScript);
         }, 1000);
+
+        setTimeout(() => {
+            this.refs.webview.postMessage("ADADASDASDA");
+        }, 2000);
 
         return (
             <AdvancedWebView
                 style={styles.webview}
                 ref="webview"
-                initialJavaScript={initialJavaScript}
-
                 source={require('./test.html')}
                 onMessage={(e) => console.log('message', e.nativeEvent.data)}
             />
