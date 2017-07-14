@@ -62,7 +62,6 @@ RCT_EXPORT_VIEW_PROPERTY(messagingEnabled, BOOL)
 
 #pragma mark - added
 
-RCT_EXPORT_VIEW_PROPERTY(hideKeyboardAccessoryView, BOOL)
 RCT_EXPORT_VIEW_PROPERTY(hideAccessory, BOOL)
 RCT_EXPORT_VIEW_PROPERTY(keyboardDisplayRequiresUserAction, BOOL)
 

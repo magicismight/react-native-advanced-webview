@@ -10,7 +10,8 @@ export default class extends WebView {
         ...WebView.propTypes,
         keyboardDisplayRequiresUserAction: PropTypes.bool,
         allowFileAccessFromFileURLs: PropTypes.bool,
-        hideAccessory: PropTypes.bool
+        hideAccessory: PropTypes.bool,
+        validSchemes: PropTypes.array
     };
 
     goForward = () => {
@@ -45,6 +46,10 @@ export default class extends WebView {
         );
     };
 
+    evaluateJavaScript = (js) => {
+        return WKWebViewManager.evaluateJavaScript(this.getWebViewHandle(), js);
+    };
+
     postMessage = (data) => {
         UIManager.dispatchViewManagerCommand(
             this.getWebViewHandle(),
@@ -61,9 +66,10 @@ export default class extends WebView {
         );
     };
 
+
     _onLoadingError = (event) => {
         event.persist(); // persist this event because we need to store it
-        var {onError, onLoadEnd} = this.props;
+        var { onError, onLoadEnd } = this.props;
         var result = onError && onError(event);
         onLoadEnd && onLoadEnd(event);
         console.warn('Encountered an error loading page', event.nativeEvent);
@@ -80,7 +86,7 @@ export default class extends WebView {
 
     render() {
         const wrapper = super.render();
-        const [webview,...children] = wrapper.props.children;
+        const [webview, ...children] = wrapper.props.children;
         const { hideAccessory, allowFileAccessFromFileURLs, keyboardDisplayRequiresUserAction } = this.props;
 
         const advancedWebview = (

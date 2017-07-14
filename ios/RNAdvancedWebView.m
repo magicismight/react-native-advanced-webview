@@ -1,9 +1,6 @@
 #import "RNAdvancedWebView.h"
-#import "UIWebView+AccessoryHiding.h"
 #import <React/RCTUIManager.h>
 #import "RNAdvancedWebView.h"
-
-#import "WKScriptMessageDelegate.h"
 
 #import <UIKit/UIKit.h>
 
@@ -35,7 +32,7 @@ NSString *const RNAdvancedWebViewJSPostMessageHost = @"postMessage";
 @end
 
 
-@interface RNAdvancedWebView () <WKNavigationDelegate, RCTAutoInsetsProtocol, WKScriptMessageHandler, WKUIDelegate>
+@interface RNAdvancedWebView () <WKNavigationDelegate, RCTAutoInsetsProtocol, WKUIDelegate>
 
 @property (nonatomic, copy) RCTDirectEventBlock onLoadingStart;
 @property (nonatomic, copy) RCTDirectEventBlock onLoadingFinish;
@@ -53,9 +50,30 @@ NSString *const RNAdvancedWebViewJSPostMessageHost = @"postMessage";
     NSString *_injectedJavaScript;
 }
 
++ (void)load {
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        // support keyboardDisplayRequiresUserAction
+        SEL sel = sel_getUid("_startAssistingNode:userIsInteracting:blurPreviousNode:userObject:");
+        Class WKContentView = NSClassFromString(@"WKContentView");
+        Method method = class_getInstanceMethod(WKContentView, sel);
+        IMP originalImp = method_getImplementation(method);
+        IMP imp = imp_implementationWithBlock(^void(id me, void* arg0, BOOL arg1, BOOL arg2, id arg3) {
+            ((void (*)(id, SEL, void*, BOOL, BOOL, id))originalImp)(me, sel, arg0, TRUE, arg2, arg3);
+        });
+        method_setImplementation(method, imp);
+    });
+}
+
 - (instancetype)initWithFrame:(CGRect)frame
 {
-    return self = [super initWithFrame:frame];
+    self = [super initWithFrame:frame];
+    if (self) {
+        _hideAccessory = NO;
+        _keyboardDisplayRequiresUserAction = NO;
+        _validSchemes = @[@"http", @"https", @"file", @"ftp", @"ws"];
+    }
+    return self;
 }
 
 RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
@@ -71,9 +89,6 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
         
         WKWebViewConfiguration* config = [[WKWebViewConfiguration alloc] init];
         config.processPool = processPool;
-        WKUserContentController* userController = [[WKUserContentController alloc]init];
-        [userController addScriptMessageHandler:[[WKScriptMessageDelegate alloc] initWithDelegate:self] name:@"reactNative"];
-        config.userContentController = userController;
         
         _webView = [[WKWebView alloc] initWithFrame:self.bounds configuration:config];
         _webView.UIDelegate = self;
@@ -94,47 +109,7 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
             request = mutableRequest;
         }
     }
-    
     [_webView loadRequest:request];
-}
-
--(void)setHideKeyboardAccessoryView:(BOOL)hideKeyboardAccessoryView
-{
-    if (!hideKeyboardAccessoryView) {
-        return;
-    }
-    
-    UIView* subview;
-    for (UIView* view in _webView.scrollView.subviews) {
-        if([[view.class description] hasPrefix:@"WKContent"])
-            subview = view;
-    }
-    
-    if(subview == nil) return;
-    
-    NSString* name = [NSString stringWithFormat:@"%@_SwizzleHelperWK", subview.class.superclass];
-    Class newClass = NSClassFromString(name);
-    
-    if(newClass == nil)
-    {
-        newClass = objc_allocateClassPair(subview.class, [name cStringUsingEncoding:NSASCIIStringEncoding], 0);
-        if(!newClass) return;
-        
-        Method method = class_getInstanceMethod([_SwizzleHelperWK class], @selector(inputAccessoryView));
-        class_addMethod(newClass, @selector(inputAccessoryView), method_getImplementation(method), method_getTypeEncoding(method));
-        
-        objc_registerClassPair(newClass);
-    }
-    
-    object_setClass(subview, newClass);
-}
-
-
-- (void)userContentController:(WKUserContentController *)userContentController didReceiveScriptMessage:(WKScriptMessage *)message
-{
-    if (_onMessage) {
-        _onMessage(@{@"name":message.name, @"body": message.body});
-    }
 }
 
 - (void)goForward
@@ -168,8 +143,7 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
     NSURLRequest *request = [RCTConvert NSURLRequest:self.source];
     if (request.URL && !_webView.URL.absoluteString.length) {
         [self loadRequest:request];
-    }
-    else {
+    } else {
         [_webView reload];
     }
 }
@@ -286,7 +260,6 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
                                                                                                    @"canGoBack": @(_webView.canGoBack),
                                                                                                    @"canGoForward" : @(_webView.canGoForward),
                                                                                                    }];
-    
     return event;
 }
 
@@ -296,6 +269,16 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
                       withScrollView:_webView.scrollView
                         updateOffset:YES];
 }
+
+- (void)dealloc
+{
+    @try {
+        [_webView removeObserver:self forKeyPath:@"estimatedProgress"];
+    }
+    @catch (NSException * __unused exception) {}
+}
+
+#pragma mark - NSKeyValueObserving
 
 - (void)observeValueForKeyPath:(NSString *)keyPath
                       ofObject:(id)object
@@ -310,18 +293,16 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
     }
 }
 
-- (void)dealloc
-{
-    @try {
-        [_webView removeObserver:self forKeyPath:@"estimatedProgress"];
-    }
-    @catch (NSException * __unused exception) {}
-}
-
 #pragma mark - WKNavigationDelegate
 
 - (void)webView:(WKWebView *)webView didStartProvisionalNavigation:(null_unspecified WKNavigation *)navigation {
-    
+    NSLog(@"didStartProvisionalNavigation: %@", webView.URL.absoluteString);
+    if (_hideAccessory) {
+        [self doHideAccessory];
+    }
+    if (_keyboardDisplayRequiresUserAction) {
+        [self doKeyboardDisplayRequiresUserAction];
+    }
 }
 
 - (void)webView:(__unused WKWebView *)webView decidePolicyForNavigationAction:(WKNavigationAction *)navigationAction decisionHandler:(void (^)(WKNavigationActionPolicy))decisionHandler
@@ -332,43 +313,66 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
     
     BOOL isJSNavigation = [scheme isEqualToString:RCTJSNavigationScheme];
     
-    // skip this for the JS Navigation handler
-    if (!isJSNavigation && _onShouldStartLoadWithRequest) {
+    if (isJSNavigation) {
+        NSString *data = request.URL.query;
+        data = [data stringByReplacingOccurrencesOfString:@"+" withString:@" "];
+        data = [data stringByReplacingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
+        
         NSMutableDictionary<NSString *, id> *event = [self baseEvent];
         [event addEntriesFromDictionary: @{
-                                           @"url": (request.URL).absoluteString,
-                                           @"navigationType": @(navigationAction.navigationType)
+                                           @"data": data,
                                            }];
-        if (![self.delegate webView:self
-          shouldStartLoadForRequest:event
-                       withCallback:_onShouldStartLoadWithRequest]) {
-            return decisionHandler(WKNavigationActionPolicyCancel);
-        }
-    }
-    
-    if (_onLoadingStart) {
-        // We have this check to filter out iframe requests and whatnot
-        BOOL isTopFrame = [url isEqual:request.mainDocumentURL];
-        if (isTopFrame) {
+        _onMessage(event);
+        decisionHandler(WKNavigationActionPolicyCancel);
+    } else {
+        if (_onShouldStartLoadWithRequest) {
             NSMutableDictionary<NSString *, id> *event = [self baseEvent];
             [event addEntriesFromDictionary: @{
-                                               @"url": url.absoluteString,
+                                               @"url": (request.URL).absoluteString,
                                                @"navigationType": @(navigationAction.navigationType)
                                                }];
-            _onLoadingStart(event);
+            if (![self.delegate webView:self
+              shouldStartLoadForRequest:event
+                           withCallback:_onShouldStartLoadWithRequest]) {
+                decisionHandler(WKNavigationActionPolicyCancel);
+                return;
+            }
+        }
+        
+        if ([self externalAppRequiredToOpenURL:url]) {
+            if ([[UIApplication sharedApplication] canOpenURL:url]) {
+                [[UIApplication sharedApplication] openURL:url];
+                decisionHandler(WKNavigationActionPolicyCancel);
+                return;
+            }
+        } else {
+            if (!navigationAction.targetFrame) {
+                [webView loadRequest:navigationAction.request];
+                decisionHandler(WKNavigationActionPolicyCancel);
+                return;
+            }
+        }
+        
+        if (_onLoadingStart) {
+            // We have this check to filter out iframe requests and whatnot
+            BOOL isTopFrame = [url isEqual:request.mainDocumentURL];
+            if (isTopFrame) {
+                NSMutableDictionary<NSString *, id> *event = [self baseEvent];
+                [event addEntriesFromDictionary: @{
+                                                   @"url": url.absoluteString,
+                                                   @"navigationType": @(navigationAction.navigationType)
+                                                   }];
+                _onLoadingStart(event);
+            }
         }
     }
-    
-    if (isJSNavigation) {
-        decisionHandler(WKNavigationActionPolicyCancel);
-    }
-    else {
-        decisionHandler(WKNavigationActionPolicyAllow);
-    }
+    decisionHandler(WKNavigationActionPolicyAllow);
 }
 
 - (void)webView:(__unused WKWebView *)webView didFailProvisionalNavigation:(__unused WKNavigation *)navigation withError:(NSError *)error
 {
+    NSLog(@"didFailProvisionalNavigation: %@", webView.URL.absoluteString);
+    
     if (_onLoadingError) {
         if ([error.domain isEqualToString:NSURLErrorDomain] && error.code == NSURLErrorCancelled) {
             // NSURLErrorCancelled is reported when a page has a redirect OR if you load
@@ -390,21 +394,13 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
 
 - (void)webView:(WKWebView *)webView didFinishNavigation:(__unused WKNavigation *)navigation
 {
-    NSLog(@"webView didFinishNavigation");
+    NSLog(@"load successful: %@", webView.URL.absoluteString);
     
     if (self.messagingEnabled) {
-#if RCT_DEV
-        // See isNative in lodash
-        NSString *testPostMessageNative = @"String(window.postMessage) === String(Object.hasOwnProperty).replace('hasOwnProperty', 'postMessage')";
-        [webView evaluateJavaScript:testPostMessageNative completionHandler:^(id result, NSError * error) {
-            if (!result) {
-                RCTLogError(@"Setting onMessage on a WebView overrides existing values of window.postMessage, but a previous value was defined");
-            }
-        }];
-        
-#endif
         NSString *source = [NSString stringWithFormat:
                             @"(function() {"
+                            "var isNative = String(window.postMessage) === String(Object.hasOwnProperty).replace('hasOwnProperty', 'postMessage');"
+                            "if (!isNative) {return}"
                             "var messageStack = [];"
                             "var executing = false;"
                             "function executeStack() {"
@@ -422,19 +418,13 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
                             "  messageStack.push('%@://%@?' + encodeURIComponent(String(data)));"
                             "  if (!executing) executeStack();"
                             "};"
-                            "window.postMessage.toString = function () {"
-                            "return String(Object.hasOwnProperty).replace('hasOwnProperty', 'postMessage');"
-                            "};"
+                            "document.dispatchEvent(new CustomEvent('ReactNativeContextReady'));"
                             "})();", RNAdvancedWebJSNavigationScheme, RNAdvancedWebViewJSPostMessageHost
                             ];
-        NSLog(@"source: %@", source);
-        [webView evaluateJavaScript:source completionHandler:^(id result, NSError * error) {
-            NSLog(@"source result: %@", result);
-            NSLog(@"source error: %@", error);
-        }];
+        [webView evaluateJavaScript:source completionHandler:nil];
     }
-    
-    if (_injectedJavaScript != nil) {
+   
+    if (_injectedJavaScript) {
         if (_onLoadingFinish) {
             [webView evaluateJavaScript:_injectedJavaScript completionHandler:^(id result, NSError *error) {
                 NSMutableDictionary<NSString *, id> *event = [self baseEvent];
@@ -509,17 +499,63 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
     return nil;
 }
 
+#pragma mark - Private
 
 /**
- - (void)webView:(WKWebView *)webView didStartProvisionalNavigation:(null_unspecified WKNavigation *)navigation;
+ hide inputAccessoryView
  */
-- (void)webViewDidStartLoad:(UIWebView *)webView
+-(void)doHideAccessory
 {
-    if (_hideAccessory) {
-        [webView setHackishlyHidesInputAccessoryView:YES];
+    UIView* subview;
+    for (UIView* view in _webView.scrollView.subviews) {
+        if([[view.class description] hasPrefix:@"WKContent"])
+            subview = view;
     }
     
-    [webView setKeyboardDisplayRequiresUserAction:_keyboardDisplayRequiresUserAction];
+    if(subview == nil) return;
+    
+    NSString* name = [NSString stringWithFormat:@"%@_SwizzleHelperWK", subview.class.superclass];
+    Class newClass = NSClassFromString(name);
+    
+    if(newClass == nil)
+    {
+        newClass = objc_allocateClassPair(subview.class, [name cStringUsingEncoding:NSASCIIStringEncoding], 0);
+        if(!newClass) return;
+        Method method = class_getInstanceMethod([_SwizzleHelperWK class], @selector(inputAccessoryView));
+        class_addMethod(newClass, @selector(inputAccessoryView), method_getImplementation(method), method_getTypeEncoding(method));
+        objc_registerClassPair(newClass);
+    }
+    object_setClass(subview, newClass);
+}
+
+- (void)doKeyboardDisplayRequiresUserAction {
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        // support keyboardDisplayRequiresUserAction
+        SEL sel = sel_getUid("_startAssistingNode:userIsInteracting:blurPreviousNode:userObject:");
+        Class WKContentView = NSClassFromString(@"WKContentView");
+        Method method = class_getInstanceMethod(WKContentView, sel);
+        IMP originalImp = method_getImplementation(method);
+        IMP imp = imp_implementationWithBlock(^void(id me, void* arg0, BOOL arg1, BOOL arg2, id arg3) {
+            ((void (*)(id, SEL, void*, BOOL, BOOL, id))originalImp)(me, sel, arg0, TRUE, arg2, arg3);
+        });
+        method_setImplementation(method, imp);
+    });
+}
+
+/**
+ Whether need external app to open url
+
+ @param URL URL description
+ @return return value description
+ */
+- (BOOL)externalAppRequiredToOpenURL:(NSURL *)URL {
+    NSString *scheme = URL.scheme;
+    if (scheme.length) {
+        return ![_validSchemes containsObject:URL.scheme];
+    } else {
+        return NO;
+    }
 }
 
 @end

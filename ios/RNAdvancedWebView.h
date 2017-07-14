@@ -31,24 +31,18 @@ shouldStartLoadForRequest:(NSMutableDictionary<NSString *, id> *)request
 @property (nonatomic, assign) BOOL openNewWindowInWebView;
 @property (nonatomic, copy) NSString *injectedJavaScript;
 
-#pragma mark - missing properties
+/**
+ supported schemes, others will use openURL。 default is @[@"http", @"https", @"file", @"ftp", @"ws"]
+ */
+@property (nonatomic, strong) NSArray *validSchemes;
 
+/**
+ Whether support postMessage
+ */
 @property (nonatomic, assign) BOOL messagingEnabled;
 
-/**
- WKWebView does not support by default
- */
-@property (nonatomic, assign) BOOL scalesPageToFit;
-
-#pragma mark - added properties
-
-@property (nonatomic, assign) BOOL hideKeyboardAccessoryView;
 @property (nonatomic, assign) BOOL hideAccessory;
 
-/**
- WKWebView does not support by default
- see: https://stackoverflow.com/questions/32407185/wkwebview-cant-open-keyboard-for-input-field
- */
 @property (nonatomic, assign) BOOL keyboardDisplayRequiresUserAction;
 
 - (void)goForward;
@@ -56,12 +50,8 @@ shouldStartLoadForRequest:(NSMutableDictionary<NSString *, id> *)request
 - (void)reload;
 - (void)stopLoading;
 
-#pragma mark - missing methods
-
 - (void)postMessage:(NSString *)message;
 - (void)injectJavaScript:(NSString *)script;
-
-#pragma mark - added methods
 
 - (BOOL)canGoBack;
 - (BOOL)canGoForward;
