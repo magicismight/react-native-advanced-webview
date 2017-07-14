@@ -1,6 +1,8 @@
 import React, { PropTypes, cloneElement } from 'react';
-import { WebView, UIManager } from 'react-native';
+import { WebView, UIManager, NativeModules } from 'react-native';
 import createReactNativeComponentClass from 'react-native/Libraries/Renderer/src/renderers/native/createReactNativeComponentClass';
+
+const AdvancedWebViewManager = NativeModules.RNAdvancedWebViewManager;
 
 export default class extends WebView {
 
@@ -46,10 +48,6 @@ export default class extends WebView {
         );
     };
 
-    evaluateJavaScript = (js) => {
-        return WKWebViewManager.evaluateJavaScript(this.getWebViewHandle(), js);
-    };
-
     postMessage = (data) => {
         UIManager.dispatchViewManagerCommand(
             this.getWebViewHandle(),
@@ -66,6 +64,23 @@ export default class extends WebView {
         );
     };
 
+    /**
+     * Indicating whether there is a back item in the back-forward list that can be navigated to
+     */
+    canGoBack = () => {
+        return AdvancedWebViewManager.canGoBack(this.getWebViewHandle());
+    };
+
+    /**
+     * Indicating whether there is a forward item in the back-forward list that can be navigated to
+     */
+    canGoForward = () => {
+        return AdvancedWebViewManager.canGoForward(this.getWebViewHandle());
+    };
+
+    evaluateJavaScript = (js) => {
+        return AdvancedWebViewManager.evaluateJavaScript(this.getWebViewHandle(), js);
+    };
 
     _onLoadingError = (event) => {
         event.persist(); // persist this event because we need to store it

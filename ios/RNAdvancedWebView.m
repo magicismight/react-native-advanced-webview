@@ -155,7 +155,6 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
 
 - (void)postMessage:(NSString *)message
 {
-    NSLog(@"postMessage: %@", message);
     NSDictionary *eventInitDict = @{
                                     @"data": message,
                                     };
@@ -163,16 +162,12 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
                         stringWithFormat:@"document.dispatchEvent(new MessageEvent('message', %@));",
                         RCTJSONStringify(eventInitDict, NULL)
                         ];
-    [_webView evaluateJavaScript:source completionHandler:^(id result, NSError * error) {
-        NSLog(@"postMessage result: %@", result);
-    }];
+    [_webView evaluateJavaScript:source completionHandler:nil];
 }
 
 - (void)injectJavaScript:(NSString *)script
 {
-    [_webView evaluateJavaScript:script completionHandler:^(id result, NSError * error) {
-        NSLog(@"injectJavaScript: %@", result);
-    }];
+    [_webView evaluateJavaScript:script completionHandler:nil];
 }
 
 - (void)setSource:(NSDictionary *)source
@@ -296,7 +291,6 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
 #pragma mark - WKNavigationDelegate
 
 - (void)webView:(WKWebView *)webView didStartProvisionalNavigation:(null_unspecified WKNavigation *)navigation {
-    NSLog(@"didStartProvisionalNavigation: %@", webView.URL.absoluteString);
     if (_hideAccessory) {
         [self doHideAccessory];
     }
@@ -371,8 +365,6 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
 
 - (void)webView:(__unused WKWebView *)webView didFailProvisionalNavigation:(__unused WKNavigation *)navigation withError:(NSError *)error
 {
-    NSLog(@"didFailProvisionalNavigation: %@", webView.URL.absoluteString);
-    
     if (_onLoadingError) {
         if ([error.domain isEqualToString:NSURLErrorDomain] && error.code == NSURLErrorCancelled) {
             // NSURLErrorCancelled is reported when a page has a redirect OR if you load

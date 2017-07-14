@@ -55,15 +55,12 @@ RCT_EXPORT_VIEW_PROPERTY(onShouldStartLoadWithRequest, RCTDirectEventBlock)
 RCT_EXPORT_VIEW_PROPERTY(onProgress, RCTDirectEventBlock)
 RCT_EXPORT_VIEW_PROPERTY(onMessage, RCTDirectEventBlock)
 
-#pragma mark - missing properties
-
-RCT_EXPORT_VIEW_PROPERTY(scalesPageToFit, BOOL)
-RCT_EXPORT_VIEW_PROPERTY(messagingEnabled, BOOL)
-
 #pragma mark - added
 
+RCT_EXPORT_VIEW_PROPERTY(messagingEnabled, BOOL)
 RCT_EXPORT_VIEW_PROPERTY(hideAccessory, BOOL)
 RCT_EXPORT_VIEW_PROPERTY(keyboardDisplayRequiresUserAction, BOOL)
+RCT_EXPORT_VIEW_PROPERTY(validSchemes, NSArray)
 
 RCT_EXPORT_METHOD(goBack:(nonnull NSNumber *)reactTag)
 {
@@ -95,7 +92,6 @@ RCT_EXPORT_METHOD(canGoBack:(nonnull NSNumber *)reactTag
 {
     [self.bridge.uiManager addUIBlock:^(__unused RCTUIManager *uiManager, NSDictionary<NSNumber *, RNAdvancedWebView *> *viewRegistry) {
         RNAdvancedWebView *view = viewRegistry[reactTag];
-        
         resolve([NSNumber numberWithBool:[view canGoBack]]);
     }];
 }
@@ -106,7 +102,6 @@ RCT_EXPORT_METHOD(canGoForward:(nonnull NSNumber *)reactTag
 {
     [self.bridge.uiManager addUIBlock:^(__unused RCTUIManager *uiManager, NSDictionary<NSNumber *, RNAdvancedWebView *> *viewRegistry) {
         RNAdvancedWebView *view = viewRegistry[reactTag];
-        
         resolve([NSNumber numberWithBool:[view canGoForward]]);
     }];
 }
