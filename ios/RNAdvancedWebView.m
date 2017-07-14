@@ -172,6 +172,13 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
 
 - (void)setSource:(NSDictionary *)source
 {
+    // Decode query string and hash in local file path
+    NSString *URLString = source[@"uri"] ?: source[@"url"];
+    if ([URLString hasPrefix:@"/"] || [URLString hasPrefix:@"file:///"]) {
+        source = @{
+                   @"uri": [URLString stringByReplacingPercentEscapesUsingEncoding:NSUTF8StringEncoding]
+                   };
+    }
     if (![_source isEqualToDictionary:source]) {
         _source = [source copy];
         _sendCookies = [source[@"sendCookies"] boolValue];
