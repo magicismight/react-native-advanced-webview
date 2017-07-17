@@ -1,6 +1,5 @@
+#import <React/RCTViewManager.h>
 
-#import "RCTWebViewManager.h"
-
-@interface RNAdvancedWebViewManager : RCTWebViewManager
+@interface RNAdvancedWebViewManager : RCTViewManager
 
 @end

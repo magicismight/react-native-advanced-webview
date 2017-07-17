@@ -1,5 +1,5 @@
 import React, { PropTypes, cloneElement } from 'react';
-import { WebView, UIManager } from 'react-native';
+import { WebView, UIManager, NativeModules } from 'react-native';
 import createReactNativeComponentClass from 'react-native/Libraries/Renderer/src/renderers/native/createReactNativeComponentClass';
 
 export default class extends WebView {
@@ -10,8 +10,7 @@ export default class extends WebView {
         ...WebView.propTypes,
         keyboardDisplayRequiresUserAction: PropTypes.bool,
         allowFileAccessFromFileURLs: PropTypes.bool,
-        hideAccessory: PropTypes.bool,
-        validSchemes: PropTypes.array
+        hideAccessory: PropTypes.bool
     };
 
     goForward = () => {
@@ -62,9 +61,9 @@ export default class extends WebView {
         );
     };
 
-    _onLoadingError = (event) => {
+    _onLoadingError = (event: Event) => {
         event.persist(); // persist this event because we need to store it
-        var { onError, onLoadEnd } = this.props;
+        var {onError, onLoadEnd} = this.props;
         var result = onError && onError(event);
         onLoadEnd && onLoadEnd(event);
         console.warn('Encountered an error loading page', event.nativeEvent);
@@ -75,13 +74,13 @@ export default class extends WebView {
         });
     };
 
-    onLoadingError = (event) => {
-        this._onLoadingError(event);
+    onLoadingError = (event: Event) => {
+        this._onLoadingError(event)
     };
 
     render() {
         const wrapper = super.render();
-        const [webview, ...children] = wrapper.props.children;
+        const [webview,...children] = wrapper.props.children;
         const { hideAccessory, allowFileAccessFromFileURLs, keyboardDisplayRequiresUserAction } = this.props;
 
         const advancedWebview = (
