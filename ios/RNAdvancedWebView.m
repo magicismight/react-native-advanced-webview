@@ -86,9 +86,11 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
         
         _automaticallyAdjustContentInsets = YES;
         _contentInset = UIEdgeInsetsZero;
-        
         WKPreferences *preferences = [[WKPreferences alloc] init];
-        [preferences setValue:[NSNumber numberWithBool:YES] forKey:@"allowFileAccessFromFileURLs"];
+
+        if (_allowUniversalAccessFromFileURLs) {
+           [preferences setValue:[NSNumber numberWithBool:YES] forKey:@"allowFileAccessFromFileURLs"];
+        }
         
         WKWebViewConfiguration* config = [[WKWebViewConfiguration alloc] init];
         config.processPool = processPool;
