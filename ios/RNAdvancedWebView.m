@@ -48,6 +48,7 @@ NSString *const RNAdvancedWebViewJSPostMessageHost = @"postMessage";
 {
     WKWebView *_webView;
     NSString *_injectedJavaScript;
+    WKProcessPool *_processPool;
 }
 
 + (void)load {
@@ -82,27 +83,31 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
 {
     if(self = [self initWithFrame:CGRectZero])
     {
+        _processPool = processPool;
         super.backgroundColor = [UIColor clearColor];
-        
         _automaticallyAdjustContentInsets = YES;
         _contentInset = UIEdgeInsetsZero;
-        WKPreferences *preferences = [[WKPreferences alloc] init];
-
-        if (_allowUniversalAccessFromFileURLs) {
-           [preferences setValue:[NSNumber numberWithBool:YES] forKey:@"allowFileAccessFromFileURLs"];
-        }
-        
-        WKWebViewConfiguration* config = [[WKWebViewConfiguration alloc] init];
-        config.processPool = processPool;
-        config.preferences = preferences;
-        
-        _webView = [[WKWebView alloc] initWithFrame:self.bounds configuration:config];
-        _webView.UIDelegate = self;
-        _webView.navigationDelegate = self;
-        [_webView addObserver:self forKeyPath:@"estimatedProgress" options:NSKeyValueObservingOptionNew context:nil];
-        [self addSubview:_webView];
+        [self initWebView];
     }
     return self;
+}
+
+- (void)initWebView
+{
+    WKWebViewConfiguration* config = [[WKWebViewConfiguration alloc] init];
+    config.processPool = _processPool;
+    
+    if (_allowFileAccessFromFileURLs) {
+        WKPreferences *preferences = [[WKPreferences alloc] init];
+        [preferences setValue:[NSNumber numberWithBool:YES] forKey:@"allowFileAccessFromFileURLs"];
+        config.preferences = preferences;
+    }
+    
+    _webView = [[WKWebView alloc] initWithFrame:self.bounds configuration:config];
+    _webView.UIDelegate = self;
+    _webView.navigationDelegate = self;
+    [_webView addObserver:self forKeyPath:@"estimatedProgress" options:NSKeyValueObservingOptionNew context:nil];
+    [self addSubview:_webView];
 }
 
 - (void)loadRequest:(NSURLRequest *)request
@@ -174,6 +179,20 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
 - (void)injectJavaScript:(NSString *)script
 {
     [_webView evaluateJavaScript:script completionHandler:nil];
+}
+
+- (void)setAllowFileAccessFromFileURLs:(BOOL)allowFileAccessFromFileURLs
+{
+    if (allowFileAccessFromFileURLs != _allowFileAccessFromFileURLs) {
+        _allowFileAccessFromFileURLs = allowFileAccessFromFileURLs;
+        [_webView removeFromSuperview];
+        @try {
+            [_webView removeObserver:self forKeyPath:@"estimatedProgress"];
+        }
+        @catch (NSException * __unused exception) {}
+        [self initWebView];
+        [self reload];
+    }
 }
 
 - (void)setSource:(NSDictionary *)source
