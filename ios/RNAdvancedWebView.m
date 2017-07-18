@@ -87,8 +87,12 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
         _automaticallyAdjustContentInsets = YES;
         _contentInset = UIEdgeInsetsZero;
         
+        WKPreferences *preferences = [[WKPreferences alloc] init];
+        [preferences setValue:[NSNumber numberWithBool:YES] forKey:@"allowFileAccessFromFileURLs"];
+        
         WKWebViewConfiguration* config = [[WKWebViewConfiguration alloc] init];
         config.processPool = processPool;
+        config.preferences = preferences;
         
         _webView = [[WKWebView alloc] initWithFrame:self.bounds configuration:config];
         _webView.UIDelegate = self;
@@ -393,8 +397,6 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
 
 - (void)webView:(WKWebView *)webView didFinishNavigation:(__unused WKNavigation *)navigation
 {
-    NSLog(@"load successful: %@", webView.URL.absoluteString);
-
     if (self.messagingEnabled) {
         NSString *source = [NSString stringWithFormat:
                             @"(function() {"
