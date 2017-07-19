@@ -1,12 +1,13 @@
 {
     "name": "react-native-advanced-webview",
-    "version": "0.11.0",
+    "version": "0.14.0",
     "description": "A WebView component for react-native more advanced features",
     "repository": {
         "type": "git",
         "url": "https://github.com/magicismight/react-native-advanced-webview"
     },
     "license": "MIT",
+    "main": "./WebView",
     "keywords": [
         "react-component",
         "react-native",
