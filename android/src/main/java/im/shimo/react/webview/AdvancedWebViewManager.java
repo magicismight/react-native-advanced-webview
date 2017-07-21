@@ -41,6 +41,7 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
 
     protected static class AdvancedWebView extends ReactWebView {
         private boolean mMessagingEnabled = false;
+        private boolean mkeyboardDisplayRequiresUserAction = true;
         private InputMethodManager mInputMethodManager = (InputMethodManager) getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
         private UIManagerModule mNativeModule;
 
@@ -84,6 +85,10 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
             }
         }
 
+        public void setKeyboardDisplayRequiresUserAction(boolean keyboardDisplayRequiresUserAction) {
+            mkeyboardDisplayRequiresUserAction = keyboardDisplayRequiresUserAction;
+        }
+
         @Override
         public void setMessagingEnabled(boolean enabled) {
             if (mMessagingEnabled == enabled) {
@@ -101,22 +106,21 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
         @Override
         public void linkBridge() {
             if (mMessagingEnabled) {
-                if (ReactBuildConfig.DEBUG && Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-                    // See isNative in lodash
-                    String testPostMessageNative = "String(window.postMessage) === String(Object.hasOwnProperty).replace('hasOwnProperty', 'postMessage')";
-                    evaluateJavascript(testPostMessageNative, new ValueCallback<String>() {
-                        @Override
-                        public void onReceiveValue(String value) {
-                            if (value.equals("true")) {
-                                FLog.w(ReactConstants.TAG, "Setting onMessage on a WebView overrides existing values of window.postMessage, but a previous value was defined");
-                            }
-                        }
-                    });
-                }
 
                 loadUrl("javascript:" +
                         "(function () {" +
                         "   if (window.originalPostMessage) {return;}" +
+                        "   window.originalPostMessage = window.postMessage," +
+                        "   window.postMessage = function(data) {" +
+                                BRIDGE_NAME + ".postMessage(String(data));" +
+                        "   };" +
+                        "   document.dispatchEvent(new CustomEvent('ReactNativeContextReady'));" +
+                        "})()");
+            }
+
+            if (mkeyboardDisplayRequiresUserAction) {
+                loadUrl("javascript:" +
+                        "(function () {" +
                         "   function isDescendant(parent, child) {" +
                         "     var node = child.parentNode;" +
                         "     while (node) {" +
@@ -127,23 +131,19 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
                         "     }" +
                         "     return false;" +
                         "   }" +
-                        "   window.originalPostMessage = window.postMessage," +
-                        "   window.postMessage = function(data) {" +
-                                BRIDGE_NAME + ".postMessage(String(data));" +
-                        "   };" +
                         "   var focus = HTMLElement.prototype.focus;" +
                         "   HTMLElement.prototype.focus = function() {" +
                         "       focus.call(this);" +
                         "       var selection = document.getSelection();" +
                         "       var anchorNode = selection && selection.anchorNode;" +
                         "       if (anchorNode && isDescendant(this, anchorNode) || this === anchorNode) {" +
-                                    BRIDGE_NAME + ".showKeyboard();" + // Show soft input manually, can't show soft input via javascript
+                        BRIDGE_NAME + ".showKeyboard();" + // Show soft input manually, can't show soft input via javascript
                         "       }" +
                         "   };" +
                         "   var blur = HTMLElement.prototype.blur;" +
                         "   HTMLElement.prototype.blur = function() {" +
                         "       if (isDescendant(document.activeElement, this)) {" +
-                                    BRIDGE_NAME + ".hideKeyboard();" +
+                        BRIDGE_NAME + ".hideKeyboard();" +
                         "       }" +
                         "       blur.call(this);" +
                         "   };" +
@@ -204,6 +204,11 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
     @ReactProp(name = "allowFileAccessFromFileURLs")
     public void setAllowFileAccessFromFileURLs(WebView root, boolean allows) {
         root.getSettings().setAllowFileAccessFromFileURLs(allows);
+    }
+
+    @ReactProp(name = "keyboardDisplayRequiresUserAction")
+    public void setKeyboardDisplayRequiresUserAction(WebView root, boolean keyboardDisplayRequiresUserAction) {
+        ((AdvancedWebView) root).setKeyboardDisplayRequiresUserAction(keyboardDisplayRequiresUserAction);
     }
 
 }

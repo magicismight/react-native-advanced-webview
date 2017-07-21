@@ -61,7 +61,7 @@ export default class extends WebView {
         );
     };
 
-    _onLoadingError = (event: Event) => {
+    _onLoadingError = (event) => {
         event.persist(); // persist this event because we need to store it
         var {onError, onLoadEnd} = this.props;
         var result = onError && onError(event);
@@ -74,7 +74,7 @@ export default class extends WebView {
         });
     };
 
-    onLoadingError = (event: Event) => {
+    onLoadingError = (event) => {
         this._onLoadingError(event)
     };
 
