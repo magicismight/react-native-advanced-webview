@@ -50,27 +50,12 @@ NSString *const RNAdvancedWebViewJSPostMessageHost = @"postMessage";
     NSString *_injectedJavaScript;
 }
 
-+ (void)load {
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-        // support keyboardDisplayRequiresUserAction
-        SEL sel = sel_getUid("_startAssistingNode:userIsInteracting:blurPreviousNode:userObject:");
-        Class WKContentView = NSClassFromString(@"WKContentView");
-        Method method = class_getInstanceMethod(WKContentView, sel);
-        IMP originalImp = method_getImplementation(method);
-        IMP imp = imp_implementationWithBlock(^void(id me, void* arg0, BOOL arg1, BOOL arg2, id arg3) {
-            ((void (*)(id, SEL, void*, BOOL, BOOL, id))originalImp)(me, sel, arg0, TRUE, arg2, arg3);
-        });
-        method_setImplementation(method, imp);
-    });
-}
-
 - (instancetype)initWithFrame:(CGRect)frame
 {
     self = [super initWithFrame:frame];
     if (self) {
         _hideAccessory = NO;
-        _keyboardDisplayRequiresUserAction = NO;
+        _keyboardDisplayRequiresUserAction = YES;
         _validSchemes = @[@"http", @"https", @"file", @"ftp", @"ws"];
     }
     return self;
@@ -87,16 +72,26 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
         _automaticallyAdjustContentInsets = YES;
         _contentInset = UIEdgeInsetsZero;
         
-        WKPreferences *preferences = [[WKPreferences alloc] init];
-        [preferences setValue:[NSNumber numberWithBool:YES] forKey:@"allowFileAccessFromFileURLs"];
-        
         WKWebViewConfiguration* config = [[WKWebViewConfiguration alloc] init];
         config.processPool = processPool;
+        @try {
+            [config setValue:[NSNumber numberWithBool:YES] forKey:@"allowUniversalAccessFromFileURLs"];
+        } @catch (NSException *exception) {
+            NSLog(@"%@", exception);
+        }
+        
+        WKPreferences *preferences = [[WKPreferences alloc] init];
+        @try {
+            [preferences setValue:[NSNumber numberWithBool:YES] forKey:@"allowFileAccessFromFileURLs"];
+        } @catch (NSException *exception) {
+            NSLog(@"%@", exception);
+        }
         config.preferences = preferences;
         
         _webView = [[WKWebView alloc] initWithFrame:self.bounds configuration:config];
         _webView.UIDelegate = self;
         _webView.navigationDelegate = self;
+    
         [_webView addObserver:self forKeyPath:@"estimatedProgress" options:NSKeyValueObservingOptionNew context:nil];
         [self addSubview:_webView];
     }
@@ -182,6 +177,7 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
         source = @{
                    @"uri": [URLString stringByReplacingPercentEscapesUsingEncoding:NSUTF8StringEncoding]
                    };
+
     }
     if (![_source isEqualToDictionary:source]) {
         _source = [source copy];
@@ -215,6 +211,7 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
         }
         
         NSURLRequest *request = [RCTConvert NSURLRequest:source];
+        
         // Because of the way React works, as pages redirect, we actually end up
         // passing the redirect urls back here, so we ignore them if trying to load
         // the same url. We'll expose a call to 'reload' to allow a user to load
