@@ -302,8 +302,8 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
     if (_hideAccessory) {
         [self doHideAccessory];
     }
-    if (_keyboardDisplayRequiresUserAction) {
-        [self doKeyboardDisplayRequiresUserAction];
+    if (!_keyboardDisplayRequiresUserAction) {
+        [self doKeyboardDisplayAutomatically];
     }
 }
 
@@ -526,7 +526,7 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
     object_setClass(subview, newClass);
 }
 
-- (void)doKeyboardDisplayRequiresUserAction {
+- (void)doKeyboardDisplayAutomatically {
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
         // support keyboardDisplayRequiresUserAction
