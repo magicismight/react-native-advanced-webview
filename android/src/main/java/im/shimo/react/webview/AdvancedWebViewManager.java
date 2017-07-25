@@ -2,6 +2,7 @@ package im.shimo.react.webview;
 
 import android.content.Context;
 import android.os.Build;
+import android.support.annotation.Nullable;
 import android.util.Log;
 import android.view.ViewGroup;
 import android.view.inputmethod.InputMethodManager;
@@ -14,6 +15,7 @@ import android.webkit.WebView;
 import com.facebook.common.logging.FLog;
 import com.facebook.react.bridge.NativeModule;
 import com.facebook.react.bridge.ReactApplicationContext;
+import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.common.ReactConstants;
 import com.facebook.react.common.build.ReactBuildConfig;
 import com.facebook.react.uimanager.NativeViewHierarchyManager;
@@ -23,6 +25,9 @@ import com.facebook.react.uimanager.UIManagerModule;
 import com.facebook.react.views.webview.ReactWebViewManager;
 import com.facebook.react.uimanager.annotations.ReactProp;
 import com.facebook.react.views.webview.WebViewConfig;
+
+import org.json.JSONException;
+import org.json.JSONObject;
 
 public class AdvancedWebViewManager extends ReactWebViewManager {
 
@@ -41,7 +46,7 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
 
     protected static class AdvancedWebView extends ReactWebView {
         private boolean mMessagingEnabled = false;
-        private boolean mkeyboardDisplayRequiresUserAction = true;
+        private boolean mkeyboardDisplayRequiresUserAction = false;
         private InputMethodManager mInputMethodManager = (InputMethodManager) getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
         private UIManagerModule mNativeModule;
 
@@ -118,7 +123,7 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
                         "})()");
             }
 
-            if (mkeyboardDisplayRequiresUserAction) {
+            if (!mkeyboardDisplayRequiresUserAction) {
                 loadUrl("javascript:" +
                         "(function () {" +
                         "   function isDescendant(parent, child) {" +
@@ -192,6 +197,46 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
             if (isReload) {
                 super.doUpdateVisitedHistory(webView, url, true);
             }
+        }
+    }
+
+    @Override
+    public void receiveCommand(WebView root, int commandId, @Nullable ReadableArray args) {
+        switch (commandId) {
+            case COMMAND_GO_BACK:
+                root.goBack();
+                break;
+            case COMMAND_GO_FORWARD:
+                root.goForward();
+                break;
+            case COMMAND_RELOAD:
+                root.reload();
+                break;
+            case COMMAND_STOP_LOADING:
+                root.stopLoading();
+                break;
+            case COMMAND_POST_MESSAGE:
+                try {
+                    JSONObject eventInitDict = new JSONObject();
+                    eventInitDict.put("data", args.getString(0));
+                    root.evaluateJavascript("(function () {" +
+                            "var event;" +
+                            "var data = " + eventInitDict.toString() + ";" +
+                            "try {" +
+                            "event = new MessageEvent('message', data);" +
+                            "} catch (e) {" +
+                            "event = document.createEvent('MessageEvent');" +
+                            "event.initMessageEvent('message', true, true, data.data, data.origin, data.lastEventId, data.source);" +
+                            "}" +
+                            "document.dispatchEvent(event);" +
+                            "})();", null);
+                } catch (JSONException e) {
+                    throw new RuntimeException(e);
+                }
+                break;
+            case COMMAND_INJECT_JAVASCRIPT:
+                root.evaluateJavascript(args.getString(0), null);
+                break;
         }
     }
 
