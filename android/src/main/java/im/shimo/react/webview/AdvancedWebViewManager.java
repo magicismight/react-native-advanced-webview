@@ -46,7 +46,7 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
 
     protected static class AdvancedWebView extends ReactWebView {
         private boolean mMessagingEnabled = false;
-        private boolean mkeyboardDisplayRequiresUserAction = true;
+        private boolean mkeyboardDisplayRequiresUserAction = false;
         private InputMethodManager mInputMethodManager = (InputMethodManager) getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
         private UIManagerModule mNativeModule;
 
@@ -123,7 +123,7 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
                         "})()");
             }
 
-            if (mkeyboardDisplayRequiresUserAction) {
+            if (!mkeyboardDisplayRequiresUserAction) {
                 loadUrl("javascript:" +
                         "(function () {" +
                         "   function isDescendant(parent, child) {" +
