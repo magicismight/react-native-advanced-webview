@@ -55,7 +55,7 @@ NSString *const RNAdvancedWebViewJSPostMessageHost = @"postMessage";
     self = [super initWithFrame:frame];
     if (self) {
         _hideAccessory = NO;
-        _keyboardDisplayRequiresUserAction = YES;
+        _keyboardDisplayRequiresUserAction = NO;
         _validSchemes = @[@"http", @"https", @"file", @"ftp", @"ws"];
     }
     return self;
