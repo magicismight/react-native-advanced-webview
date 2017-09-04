@@ -45,6 +45,8 @@ shouldStartLoadForRequest:(NSMutableDictionary<NSString *, id> *)request
 
 @property (nonatomic, assign) BOOL keyboardDisplayRequiresUserAction;
 
+@property (nonatomic, assign) BOOL disableKeyboardAdjust;
+
 - (void)goForward;
 - (void)goBack;
 - (void)reload;
