@@ -32,7 +32,7 @@ NSString *const RNAdvancedWebViewJSPostMessageHost = @"postMessage";
 @end
 
 
-@interface RNAdvancedWebView () <WKNavigationDelegate, RCTAutoInsetsProtocol, WKUIDelegate>
+@interface RNAdvancedWebView () <WKNavigationDelegate, RCTAutoInsetsProtocol, WKUIDelegate, UIScrollViewDelegate>
 
 @property (nonatomic, copy) RCTDirectEventBlock onLoadingStart;
 @property (nonatomic, copy) RCTDirectEventBlock onLoadingFinish;
@@ -282,6 +282,8 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
 
 - (void)dealloc
 {
+    _webView.scrollView.delegate = nil;
+    _webView.UIDelegate = nil;
     @try {
         [_webView removeObserver:self forKeyPath:@"estimatedProgress"];
     }
