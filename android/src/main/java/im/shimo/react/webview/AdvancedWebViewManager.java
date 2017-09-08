@@ -46,7 +46,7 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
 
     protected static class AdvancedWebView extends ReactWebView {
         private boolean mMessagingEnabled = false;
-        private boolean mkeyboardDisplayRequiresUserAction = false;
+        private boolean mKeyboardDisplayRequiresUserAction = false;
         private InputMethodManager mInputMethodManager = (InputMethodManager) getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
         private UIManagerModule mNativeModule;
 
@@ -91,7 +91,7 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
         }
 
         public void setKeyboardDisplayRequiresUserAction(boolean keyboardDisplayRequiresUserAction) {
-            mkeyboardDisplayRequiresUserAction = keyboardDisplayRequiresUserAction;
+            mKeyboardDisplayRequiresUserAction = keyboardDisplayRequiresUserAction;
         }
 
         @Override
@@ -123,7 +123,7 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
                         "})()");
             }
 
-            if (!mkeyboardDisplayRequiresUserAction) {
+            if (!mKeyboardDisplayRequiresUserAction) {
                 loadUrl("javascript:" +
                         "(function () {" +
                         "   function isDescendant(parent, child) {" +
@@ -187,7 +187,6 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
         if (ReactBuildConfig.DEBUG && Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
             WebView.setWebContentsDebuggingEnabled(true);
         }
-
         return webView;
     }
 
