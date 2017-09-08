@@ -141,7 +141,7 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
                         "       focus.call(this);" +
                         "       var selection = document.getSelection();" +
                         "       var anchorNode = selection && selection.anchorNode;" +
-                        "       if (anchorNode && isDescendant(this, anchorNode) || this === anchorNode) {" +
+                        "       if (document.activeElement !== document.body && anchorNode && isDescendant(this, anchorNode) || this === anchorNode) {" +
                         BRIDGE_NAME + ".showKeyboard();" + // Show soft input manually, can't show soft input via javascript
                         "       }" +
                         "   };" +
