@@ -335,6 +335,7 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
                                            }];
         _onMessage(event);
         decisionHandler(WKNavigationActionPolicyCancel);
+        return;
     } else {
         if (_onShouldStartLoadWithRequest) {
             NSMutableDictionary<NSString *, id> *event = [self baseEvent];
