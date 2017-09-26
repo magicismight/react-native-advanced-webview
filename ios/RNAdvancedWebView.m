@@ -407,7 +407,7 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
     if (self.messagingEnabled) {
         NSString *source = [NSString stringWithFormat:
                             @"(function() {"
-                            "var isNative = String(window.postMessage) === String(Object.hasOwnProperty).replace('hasOwnProperty', 'postMessage');"
+                            "var isNative = window.postMessage.length !== 1;"
                             "if (!isNative) {return}"
                             "var messageStack = [];"
                             "var executing = false;"
