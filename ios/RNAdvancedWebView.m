@@ -101,7 +101,7 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
 
 - (void)scrollViewDidScroll:(UIScrollView *)scrollView {
     if (_disableKeyboardAdjust) {
-        scrollView.bounds = _webView.bounds;
+        [scrollView setContentOffset:CGPointZero];
     }
 }
 
