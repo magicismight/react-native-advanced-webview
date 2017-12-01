@@ -12,7 +12,8 @@ export default class extends WebView {
     allowFileAccessFromFileURLs: PropTypes.bool,
     hideAccessory: PropTypes.bool,
     validSchemes: PropTypes.array,
-    disableKeyboardAdjust: PropTypes.bool
+    disableKeyboardAdjust: PropTypes.bool,
+    contentInsetAdjustmentBehavior: PropTypes.number
   };
 
   goForward = () => {
@@ -84,7 +85,7 @@ export default class extends WebView {
     const wrapper = super.render();
     const [webview, ...children] = wrapper.props.children;
     const { hideAccessory, allowFileAccessFromFileURLs, keyboardDisplayRequiresUserAction,
-      disableKeyboardAdjust} = this.props;
+      disableKeyboardAdjust, contentInsetAdjustmentBehavior} = this.props;
 
     const advancedWebview = (
       <RNAdvancedWebView
@@ -94,6 +95,7 @@ export default class extends WebView {
         keyboardDisplayRequiresUserAction={keyboardDisplayRequiresUserAction}
         hideAccessory={hideAccessory}
         disableKeyboardAdjust={disableKeyboardAdjust}
+        contentInsetAdjustmentBehavior={contentInsetAdjustmentBehavior}
       />
     );
 
@@ -105,6 +107,7 @@ const RNAdvancedWebView = requireNativeComponent('RNAdvancedWebView', null, {
   nativeOnly: {
     allowFileAccessFromFileURLs: true,
     hideAccessory: true,
-    keyboardDisplayRequiresUserAction: true
+    keyboardDisplayRequiresUserAction: true,
+    contentInsetAdjustmentBehavior: 0
   }
 })
