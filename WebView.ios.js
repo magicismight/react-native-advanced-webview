@@ -1,7 +1,6 @@
 import React, { cloneElement } from 'react';
 import PropTypes from 'prop-types';
-import { WebView, UIManager } from 'react-native';
-import createReactNativeComponentClass from 'react-native/Libraries/Renderer/shims/createReactNativeComponentClass';
+import { WebView, UIManager, requireNativeComponent } from 'react-native';
 
 export default class extends WebView {
 
@@ -102,13 +101,10 @@ export default class extends WebView {
   }
 }
 
-const RNAdvancedWebView = createReactNativeComponentClass({
-  validAttributes: {
-    ...UIManager.RCTWebView.validAttributes,
+const RNAdvancedWebView = requireNativeComponent('RNAdvancedWebView', null, {
+  nativeOnly: {
     allowFileAccessFromFileURLs: true,
-    disableKeyboardAdjust: true,
     hideAccessory: true,
     keyboardDisplayRequiresUserAction: true
-  },
-  uiViewClassName: 'RNAdvancedWebView'
-});
+  }
+})
