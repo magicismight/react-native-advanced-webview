@@ -56,6 +56,7 @@ NSString *const RNAdvancedWebViewJSPostMessageHost = @"postMessage";
     if (self) {
         _hideAccessory = NO;
         _keyboardDisplayRequiresUserAction = NO;
+        _contentInsetAdjustmentBehavior = 0;
         _validSchemes = @[@"http", @"https", @"file", @"ftp", @"ws"];
     }
     return self;
@@ -92,7 +93,7 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
         _webView.UIDelegate = self;
         _webView.navigationDelegate = self;
         _webView.scrollView.delegate = self;
-    
+        
         [_webView addObserver:self forKeyPath:@"estimatedProgress" options:NSKeyValueObservingOptionNew context:nil];
         [self addSubview:_webView];
     }
@@ -247,6 +248,17 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
     [RCTView autoAdjustInsetsForView:self
                       withScrollView:_webView.scrollView
                         updateOffset:NO];
+}
+
+- (void)setContentInsetAdjustmentBehavior:(NSInteger)contentInsetAdjustmentBehavior
+{
+    if (_contentInsetAdjustmentBehavior == contentInsetAdjustmentBehavior) {
+        return;
+    }
+    _contentInsetAdjustmentBehavior = contentInsetAdjustmentBehavior;
+    if (@available(iOS 11.0, *)) {
+        _webView.scrollView.contentInsetAdjustmentBehavior = (UIScrollViewContentInsetAdjustmentBehavior)_contentInsetAdjustmentBehavior;
+    }
 }
 
 - (void)setBackgroundColor:(UIColor *)backgroundColor
