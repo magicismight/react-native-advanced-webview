@@ -1,6 +1,5 @@
 package im.shimo.react.webview;
 
-export PATH=$JAVA_HOME/bin:$PATH
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.os.Build;
@@ -310,7 +309,6 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
      */
     private void resetPage() {
         mWebView.loadUrl(BLANK_URL);
-        SystemClock.sleep(500);
         mWebviews.clear();
     }
 
@@ -356,6 +354,10 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
 
     protected class AdvancedWebViewClient extends ReactWebViewClient {
 
+        @Override
+        public void onPageFinished(WebView webView, String url) {
+            super.onPageFinished(webView, url);
+        }
 
         @Override
         public void doUpdateVisitedHistory(WebView webView, String url, boolean isReload) {
