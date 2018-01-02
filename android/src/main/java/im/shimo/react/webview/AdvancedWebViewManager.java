@@ -1,7 +1,9 @@
 package im.shimo.react.webview;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.os.Build;
+import android.os.SystemClock;
 import android.support.annotation.Nullable;
 import android.view.ViewGroup;
 import android.view.inputmethod.InputMethodManager;
@@ -16,19 +18,73 @@ import com.facebook.react.uimanager.NativeViewHierarchyManager;
 import com.facebook.react.uimanager.ThemedReactContext;
 import com.facebook.react.uimanager.UIBlock;
 import com.facebook.react.uimanager.UIManagerModule;
-import com.facebook.react.views.webview.ReactWebViewManager;
 import com.facebook.react.uimanager.annotations.ReactProp;
+import com.facebook.react.views.view.ReactViewGroup;
+import com.facebook.react.views.webview.ReactWebViewManager;
 import com.facebook.react.views.webview.WebViewConfig;
 
 import org.json.JSONException;
 import org.json.JSONObject;
+
+import java.util.LinkedList;
 
 public class AdvancedWebViewManager extends ReactWebViewManager {
 
     private static final String REACT_CLASS = "RNAdvancedWebView";
     private static final String BRIDGE_NAME = "__REACT_WEB_VIEW_BRIDGE";
 
-    private WebViewConfig mWebViewConfig;
+    /**
+     * 第一个文档打开后所保留的单例
+     */
+    private volatile AdvancedWebView mWebView;
+    /**
+     * 便于调用销毁方法
+     */
+    private static AdvancedWebViewManager INSTANCE;
+    /**
+     * 存储从一个webview内新启的另一些webview，按顺序存储
+     */
+    private LinkedList<WebView> mWebviews;
+
+    private static final String URL_A = "javascript:" +
+            "(function () {" +
+            "   if (window.originalPostMessage) {return;}" +
+            "   window.originalPostMessage = window.postMessage," +
+            "   window.postMessage = function(data) {";
+    private static final String URL_B = ".postMessage(String(data));" +
+            "   };" +
+            "   document.dispatchEvent(new CustomEvent('ReactNativeContextReady'));" +
+            "})()";
+    private static String URL_KEYBOARD_A = "javascript:" +
+            "(function () {" +
+            "   function isDescendant(parent, child) {" +
+            "     var node = child.parentNode;" +
+            "     while (node) {" +
+            "         if (node == parent) {" +
+            "             return true;" +
+            "         }" +
+            "         node = node.parentNode;" +
+            "     }" +
+            "     return false;" +
+            "   }" +
+            "   var focus = HTMLElement.prototype.focus;" +
+            "   HTMLElement.prototype.focus = function() {" +
+            "       focus.call(this);" +
+            "       var selection = document.getSelection();" +
+            "       var anchorNode = selection && selection.anchorNode;" +
+            "       if (document.activeElement !== document.body && anchorNode && (isDescendant(this, anchorNode) || this === anchorNode)) {";
+    private static String URL_KEYBOARD_B = ".showKeyboard();" + // Show soft input manually, can't show soft input via javascript
+            "       }" +
+            "   };" +
+            "   var blur = HTMLElement.prototype.blur;" +
+            "   HTMLElement.prototype.blur = function() {" +
+            "       if (isDescendant(document.activeElement, this)) {";
+    private static String URL_KEYBOARD_C = ".hideKeyboard();" +
+            "       }" +
+            "       blur.call(this);" +
+            "   };" +
+            "   document.dispatchEvent(new CustomEvent('ReactNativeContextReady'));" +
+            "})()";
 
     public AdvancedWebViewManager() {
         super();
@@ -36,8 +92,12 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
             public void configWebView(WebView webView) {
             }
         };
+        mWebviews = new LinkedList<>();
+        INSTANCE = this;
     }
 
+
+    @SuppressLint("ViewConstructor")
     protected static class AdvancedWebView extends ReactWebView {
         private boolean mMessagingEnabled = false;
         private boolean mKeyboardDisplayRequiresUserAction = false;
@@ -88,6 +148,7 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
             mKeyboardDisplayRequiresUserAction = keyboardDisplayRequiresUserAction;
         }
 
+
         @Override
         public void setMessagingEnabled(boolean enabled) {
             if (mMessagingEnabled == enabled) {
@@ -102,65 +163,164 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
             }
         }
 
+
         @Override
         public void linkBridge() {
-            if (mMessagingEnabled) {
-
-                loadUrl("javascript:" +
-                        "(function () {" +
-                        "   if (window.originalPostMessage) {return;}" +
-                        "   window.originalPostMessage = window.postMessage," +
-                        "   window.postMessage = function(data) {" +
-                                BRIDGE_NAME + ".postMessage(String(data));" +
-                        "   };" +
-                        "   document.dispatchEvent(new CustomEvent('ReactNativeContextReady'));" +
-                        "})()");
+            if (getOriginalUrl().equals(BLANK_URL)) {
+                return;
             }
-
+            if (mMessagingEnabled) {
+                loadUrl(URL_A + BRIDGE_NAME + URL_B);
+            }
             if (!mKeyboardDisplayRequiresUserAction) {
-                loadUrl("javascript:" +
-                        "(function () {" +
-                        "   function isDescendant(parent, child) {" +
-                        "     var node = child.parentNode;" +
-                        "     while (node) {" +
-                        "         if (node == parent) {" +
-                        "             return true;" +
-                        "         }" +
-                        "         node = node.parentNode;" +
-                        "     }" +
-                        "     return false;" +
-                        "   }" +
-                        "   var focus = HTMLElement.prototype.focus;" +
-                        "   HTMLElement.prototype.focus = function() {" +
-                        "       focus.call(this);" +
-                        "       var selection = document.getSelection();" +
-                        "       var anchorNode = selection && selection.anchorNode;" +
-                        "       if (document.activeElement !== document.body && anchorNode && (isDescendant(this, anchorNode) || this === anchorNode)) {" +
-                        BRIDGE_NAME + ".showKeyboard();" + // Show soft input manually, can't show soft input via javascript
-                        "       }" +
-                        "   };" +
-                        "   var blur = HTMLElement.prototype.blur;" +
-                        "   HTMLElement.prototype.blur = function() {" +
-                        "       if (isDescendant(document.activeElement, this)) {" +
-                        BRIDGE_NAME + ".hideKeyboard();" +
-                        "       }" +
-                        "       blur.call(this);" +
-                        "   };" +
-                        "   document.dispatchEvent(new CustomEvent('ReactNativeContextReady'));" +
-                        "})()");
+                loadUrl(URL_KEYBOARD_A + BRIDGE_NAME + URL_KEYBOARD_B + BRIDGE_NAME + URL_KEYBOARD_C);
+            }
+        }
+
+
+        /**
+         * 是否显示在界面上
+         */
+        private int mVisibility = -1;
+
+        @Override
+        protected void onWindowVisibilityChanged(int visibility) {
+            super.onWindowVisibilityChanged(visibility);
+            if (visibility != mVisibility) {
+                if (visibility == VISIBLE) {
+                    resumeTimers();
+                } else {
+                    pauseTimers();
+                }
+                mVisibility = visibility;
+            }
+        }
+
+    }
+
+
+    /**
+     * 此方法在退出web界面时或回退到上一个webview界面时调用，应用程序在前台显示
+     *
+     * @param webView
+     */
+    @Override
+    public void onDropViewInstance(WebView webView) {
+        if (!mWebView.equals(webView)) {
+            //恢复即将被销毁的webview所遮盖的webview状态
+            int index = resumeBeforeWeb();
+            //毁掉退出的webview
+            destroyWebView(mWebviews.get(index));
+            super.onDropViewInstance(webView);
+        } else {//如果是退出第一个Dwebview页面,返回主界面
+            resetPage();
+            callParentDropMe(webView);
+        }
+    }
+
+    private int resumeBeforeWeb() {
+        int size = mWebviews.size();
+        int index = size - 1;
+        if (size > 1) {
+            final WebView fweb = mWebviews.get(index - 1);
+            if (fweb != null) {
+                fweb.resumeTimers();
+            }
+        }
+        return index;
+    }
+
+
+    private void pauseBefores() {
+        mWebView.pauseTimers();
+        for (int i = 0; i < mWebviews.size(); i++) {
+            final WebView view = mWebviews.get(i);
+            view.pauseTimers();
+        }
+    }
+
+
+    /**
+     * 此方法在程序销毁时调用
+     */
+    public static void webviewOnDestroy() {
+        if (INSTANCE != null && INSTANCE.mWebView != null) {
+            INSTANCE.mWebView.removeAllViews();
+            INSTANCE.callParentDropMe(INSTANCE.mWebView);
+        }
+        if (!INSTANCE.mWebviews.isEmpty()) {
+            for (int i = 0; i < INSTANCE.mWebviews.size(); i++) {
+                INSTANCE.mWebviews.get(i).removeAllViews();
+                INSTANCE.callParentDropMe(INSTANCE.mWebviews.get(i));
             }
         }
     }
 
+    private void destroyWebView(WebView webView) {
+        webView.removeAllViews();
+        callParentDropMe(webView);
+    }
+
+
+    /**
+     * 把自己从绑定界面上移除掉
+     *
+     * @param webView
+     * @return
+     */
+    private void callParentDropMe(WebView webView) {
+        final ReactViewGroup parent = (ReactViewGroup) webView.getParent();
+        if (parent != null) {
+            parent.removeView(webView);
+        }
+    }
 
     @Override
     public String getName() {
         return REACT_CLASS;
     }
 
+
+    /**
+     * 创建
+     *
+     * @param reactContext
+     * @return
+     */
     @Override
     protected WebView createViewInstance(ThemedReactContext reactContext) {
-        ReactWebView webView = new AdvancedWebView(reactContext);
+        WebView webView = null;
+
+        if (mWebView == null) {//首次打开
+            mWebView = initWebview(reactContext);
+            webView = mWebView;
+        } else if (mWebView.getParent() == null) {//曾经打开过，再重新打开
+            webView = mWebView;
+        } else if (mWebView.getParent() != null) {//非首次打开
+            pauseBefores();
+            webView = initWebview(reactContext);
+            mWebviews.add(webView);
+        }
+        return webView;
+    }
+
+    /**
+     * 重置页面，解决第二次加载失败的bug
+     */
+    private void resetPage() {
+        mWebView.loadUrl(BLANK_URL);
+        mWebviews.clear();
+    }
+
+    /**
+     * 初始化webview实例，刷新document
+     *
+     * @param reactContext
+     * @return
+     */
+    @SuppressLint("SetJavaScriptEnabled")
+    public AdvancedWebView initWebview(ThemedReactContext reactContext) {
+        AdvancedWebView webView = new AdvancedWebView(reactContext);
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
             public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback callback) {
@@ -168,11 +328,11 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
             }
         });
 
-        reactContext.addLifecycleEventListener(webView);
-        mWebViewConfig.configWebView(webView);
         webView.getSettings().setBuiltInZoomControls(true);
         webView.getSettings().setDisplayZoomControls(false);
-
+        webView.getSettings().setJavaScriptEnabled(true);
+        mWebViewConfig.configWebView(webView);
+        reactContext.addLifecycleEventListener(webView);
         // Fixes broken full-screen modals/galleries due to body height being 0.
         webView.setLayoutParams(
                 new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
@@ -189,17 +349,23 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
             // older android version, disable hardware acceleration
             webView.setLayerType(WebView.LAYER_TYPE_SOFTWARE, null);
         }
-
         return webView;
     }
 
-    protected static class AdvancedWebViewClient extends ReactWebViewClient {
+    protected class AdvancedWebViewClient extends ReactWebViewClient {
+
+        @Override
+        public void onPageFinished(WebView webView, String url) {
+            super.onPageFinished(webView, url);
+        }
+
         @Override
         public void doUpdateVisitedHistory(WebView webView, String url, boolean isReload) {
             if (isReload) {
                 super.doUpdateVisitedHistory(webView, url, true);
             }
         }
+
     }
 
     @Override
