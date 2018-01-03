@@ -210,7 +210,9 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
             //恢复即将被销毁的webview所遮盖的webview状态
             int index = resumeBeforeWeb();
             //毁掉退出的webview
-            destroyWebView(mWebviews.get(index));
+            if (index > 0 && index < mWebviews.size()) {
+                destroyWebView(mWebviews.get(index));
+            }
             super.onDropViewInstance(webView);
         } else {//如果是退出第一个Dwebview页面,返回主界面
             resetPage();
