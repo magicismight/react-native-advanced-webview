@@ -47,44 +47,44 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
     private LinkedList<WebView> mWebviews;
 
     private static final String URL_A = "javascript:" +
-            "(function () {" +
-            "   if (window.originalPostMessage) {return;}" +
-            "   window.originalPostMessage = window.postMessage," +
-            "   window.postMessage = function(data) {";
+        "(function () {" +
+        "   if (window.originalPostMessage) {return;}" +
+        "   window.originalPostMessage = window.postMessage," +
+        "   window.postMessage = function(data) {";
     private static final String URL_B = ".postMessage(String(data));" +
-            "   };" +
-            "   document.dispatchEvent(new CustomEvent('ReactNativeContextReady'));" +
-            "})()";
+        "   };" +
+        "   document.dispatchEvent(new CustomEvent('ReactNativeContextReady'));" +
+        "})()";
     private static String URL_KEYBOARD_A = "javascript:" +
-            "(function () {" +
-            "   function isDescendant(parent, child) {" +
-            "     var node = child.parentNode;" +
-            "     while (node) {" +
-            "         if (node == parent) {" +
-            "             return true;" +
-            "         }" +
-            "         node = node.parentNode;" +
-            "     }" +
-            "     return false;" +
-            "   }" +
-            "   var focus = HTMLElement.prototype.focus;" +
-            "   HTMLElement.prototype.focus = function() {" +
-            "       focus.call(this);" +
-            "       var selection = document.getSelection();" +
-            "       var anchorNode = selection && selection.anchorNode;" +
-            "       if (document.activeElement !== document.body && anchorNode && (isDescendant(this, anchorNode) || this === anchorNode)) {";
+        "(function () {" +
+        "   function isDescendant(parent, child) {" +
+        "     var node = child.parentNode;" +
+        "     while (node) {" +
+        "         if (node == parent) {" +
+        "             return true;" +
+        "         }" +
+        "         node = node.parentNode;" +
+        "     }" +
+        "     return false;" +
+        "   }" +
+        "   var focus = HTMLElement.prototype.focus;" +
+        "   HTMLElement.prototype.focus = function() {" +
+        "       focus.call(this);" +
+        "       var selection = document.getSelection();" +
+        "       var anchorNode = selection && selection.anchorNode;" +
+        "       if (document.activeElement !== document.body && anchorNode && (isDescendant(this, anchorNode) || this === anchorNode)) {";
     private static String URL_KEYBOARD_B = ".showKeyboard();" + // Show soft input manually, can't show soft input via javascript
-            "       }" +
-            "   };" +
-            "   var blur = HTMLElement.prototype.blur;" +
-            "   HTMLElement.prototype.blur = function() {" +
-            "       if (isDescendant(document.activeElement, this)) {";
+        "       }" +
+        "   };" +
+        "   var blur = HTMLElement.prototype.blur;" +
+        "   HTMLElement.prototype.blur = function() {" +
+        "       if (isDescendant(document.activeElement, this)) {";
     private static String URL_KEYBOARD_C = ".hideKeyboard();" +
-            "       }" +
-            "       blur.call(this);" +
-            "   };" +
-            "   document.dispatchEvent(new CustomEvent('ReactNativeContextReady'));" +
-            "})()";
+        "       }" +
+        "       blur.call(this);" +
+        "   };" +
+        "   document.dispatchEvent(new CustomEvent('ReactNativeContextReady'));" +
+        "})()";
 
     public AdvancedWebViewManager() {
         super();
@@ -244,19 +244,20 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
      * 此方法在程序销毁时调用
      */
     public static void webviewOnDestroy() {
-        if (INSTANCE != null && INSTANCE.mWebView != null) {
-            INSTANCE.mWebView.removeAllViews();
-            INSTANCE.callParentDropMe(INSTANCE.mWebView);
-            INSTANCE.mWebView = null;
-        }
-        if (!INSTANCE.mWebviews.isEmpty()) {
-            for (int i = 0; i < INSTANCE.mWebviews.size(); i++) {
-                INSTANCE.mWebviews.get(i).removeAllViews();
-                INSTANCE.callParentDropMe(INSTANCE.mWebviews.get(i));
+        if (INSTANCE != null) {
+            if (INSTANCE.mWebView != null) {
+                INSTANCE.mWebView.removeAllViews();
+                INSTANCE.callParentDropMe(INSTANCE.mWebView);
             }
-            INSTANCE.mWebviews.clear();
+            if (INSTANCE.mWebviews != null && !INSTANCE.mWebviews.isEmpty()) {
+                for (int i = 0; i < INSTANCE.mWebviews.size(); i++) {
+                    INSTANCE.mWebviews.get(i).removeAllViews();
+                    INSTANCE.callParentDropMe(INSTANCE.mWebviews.get(i));
+                }
+                INSTANCE.mWebviews.clear();
+            }
+            INSTANCE = null;
         }
-        INSTANCE = null;
     }
 
     private void destroyWebView(WebView webView) {
@@ -338,8 +339,8 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
         reactContext.addLifecycleEventListener(webView);
         // Fixes broken full-screen modals/galleries due to body height being 0.
         webView.setLayoutParams(
-                new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.MATCH_PARENT));
+            new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT));
 
         if (ReactBuildConfig.DEBUG && Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
             WebView.setWebContentsDebuggingEnabled(true);
@@ -391,16 +392,16 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
                     JSONObject eventInitDict = new JSONObject();
                     eventInitDict.put("data", args.getString(0));
                     root.evaluateJavascript("(function () {" +
-                            "var event;" +
-                            "var data = " + eventInitDict.toString() + ";" +
-                            "try {" +
-                            "event = new MessageEvent('message', data);" +
-                            "} catch (e) {" +
-                            "event = document.createEvent('MessageEvent');" +
-                            "event.initMessageEvent('message', true, true, data.data, data.origin, data.lastEventId, data.source);" +
-                            "}" +
-                            "document.dispatchEvent(event);" +
-                            "})();", null);
+                        "var event;" +
+                        "var data = " + eventInitDict.toString() + ";" +
+                        "try {" +
+                        "event = new MessageEvent('message', data);" +
+                        "} catch (e) {" +
+                        "event = document.createEvent('MessageEvent');" +
+                        "event.initMessageEvent('message', true, true, data.data, data.origin, data.lastEventId, data.source);" +
+                        "}" +
+                        "document.dispatchEvent(event);" +
+                        "})();", null);
                 } catch (JSONException e) {
                     throw new RuntimeException(e);
                 }
