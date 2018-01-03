@@ -210,22 +210,40 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
             //恢复即将被销毁的webview所遮盖的webview状态
             int index = resumeBeforeWeb();
             //毁掉退出的webview
-            destroyWebView(mWebviews.get(index));
+            if (index >= 0) {
+                destroyWebView(mWebviews.get(index));
+            }
             super.onDropViewInstance(webView);
         } else {//如果是退出第一个Dwebview页面,返回主界面
-            resetPage();
             callParentDropMe(webView);
+            resetPage();
         }
     }
 
+    /**
+     * 拿出栈内睡眠的最上一层webview并唤醒显示出来
+     *
+     * @return 如果小于0，说明栈内没有view了；
+     *         <p>如果等于0，说明栈内只剩下将要销毁的webview;
+     *         <p>如果大于0，返回的值为即将被销毁的webview在栈内的角标
+     */
     private int resumeBeforeWeb() {
         int size = mWebviews.size();
+        //即将被销毁的webview的角标
         int index = size - 1;
         if (size > 1) {
+            //栈内还有睡眠状态的webview
+            //得到最上面一层的睡眠webview，并唤醒
             final WebView fweb = mWebviews.get(index - 1);
             if (fweb != null) {
                 fweb.resumeTimers();
             }
+        } else if (index == 0) {
+            //栈内没有睡眠状态的webview了
+            return 0;
+        } else {
+            //栈内没有webview
+            return -1;
         }
         return index;
     }
@@ -248,6 +266,7 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
             if (INSTANCE.mWebView != null) {
                 INSTANCE.mWebView.removeAllViews();
                 INSTANCE.callParentDropMe(INSTANCE.mWebView);
+                INSTANCE.mWebView = null;
             }
             if (INSTANCE.mWebviews != null && !INSTANCE.mWebviews.isEmpty()) {
                 for (int i = 0; i < INSTANCE.mWebviews.size(); i++) {
@@ -312,8 +331,8 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
      * 重置页面，解决第二次加载失败的bug
      */
     private void resetPage() {
-        mWebView.loadUrl(BLANK_URL);
         mWebviews.clear();
+        mWebView.loadUrl(BLANK_URL);
     }
 
     /**
