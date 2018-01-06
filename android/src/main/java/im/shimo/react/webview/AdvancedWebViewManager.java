@@ -5,7 +5,13 @@ import android.content.Context;
 import android.os.Build;
 import android.os.SystemClock;
 import android.support.annotation.Nullable;
+import android.text.InputType;
+import android.view.KeyEvent;
 import android.view.ViewGroup;
+import android.view.inputmethod.BaseInputConnection;
+import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputConnection;
+import android.view.inputmethod.InputConnectionWrapper;
 import android.view.inputmethod.InputMethodManager;
 import android.webkit.GeolocationPermissions;
 import android.webkit.JavascriptInterface;
@@ -109,6 +115,48 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
             mNativeModule = reactContext.getNativeModule(UIManagerModule.class);
         }
 
+        /**
+         * 解决4.4以下图片无法删除的bug，其实就是把键盘的删除事件拦截以后自己处理
+         *
+         * @param outAttrs
+         * @return
+         */
+        @Override
+        public InputConnection onCreateInputConnection(EditorInfo outAttrs) {
+            if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.KITKAT) {
+                outAttrs.actionLabel = null;
+                outAttrs.inputType = InputType.TYPE_NULL;
+                final InputConnection baseConnet = new BaseInputConnection(this, false);
+                InputConnectionWrapper inputConnectionWrapper = new InputConnectionWrapper(
+                    super.onCreateInputConnection(outAttrs), true) {
+                    @Override
+                    public boolean deleteSurroundingText(int beforeLength, int afterLength) {
+                        if (beforeLength == 1 && afterLength == 0) {
+                            return this.sendKeyEvent(new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
+                                && this.sendKeyEvent(new KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DEL));
+                        }
+                        return super.deleteSurroundingText(beforeLength, afterLength);
+                    }
+
+                    @Override
+                    public boolean sendKeyEvent(KeyEvent event) {
+                        if (event.getKeyCode() == KeyEvent.KEYCODE_DEL) {
+                            return baseConnet.sendKeyEvent(event);
+                        } else {
+                            return super.sendKeyEvent(event);
+                        }
+                    }
+                };
+                try {
+                    return inputConnectionWrapper;
+                } catch (Exception e) {
+                    return super.onCreateInputConnection(outAttrs);
+                }
+            } else {
+                return super.onCreateInputConnection(outAttrs);
+            }
+        }
+
         private class ReactWebViewBridge {
             ReactWebView mContext;
 
@@ -210,24 +258,40 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
             //恢复即将被销毁的webview所遮盖的webview状态
             int index = resumeBeforeWeb();
             //毁掉退出的webview
-            if (index >= 0 && index < mWebviews.size()) {
+            if (index >= 0) {
                 destroyWebView(mWebviews.get(index));
             }
             super.onDropViewInstance(webView);
         } else {//如果是退出第一个Dwebview页面,返回主界面
-            resetPage();
             callParentDropMe(webView);
+            resetPage();
         }
     }
 
+    /**
+     * 拿出栈内睡眠的最上一层webview并唤醒，返回即将销毁的webview在栈内的角标
+     *
+     * @return 如果小于0，说明栈内没有view了；
+     * <p>如果等于0，说明栈内只剩下将要销毁的webview;
+     * <p>如果大于0，返回的值为即将被销毁的webview在栈内的角标
+     */
     private int resumeBeforeWeb() {
         int size = mWebviews.size();
+        //即将被销毁的webview的角标
         int index = size - 1;
         if (size > 1) {
+            //栈内还有睡眠状态的webview
+            //得到最上面一层的睡眠webview，并唤醒，返回销毁角标
             final WebView fweb = mWebviews.get(index - 1);
             if (fweb != null) {
                 fweb.resumeTimers();
             }
+        } else if (index == 0) {
+            //栈内没有睡眠状态的webview了,返回销毁角标
+            return 0;
+        } else {
+            //栈内没有webview
+            return -1;
         }
         return index;
     }
@@ -254,8 +318,10 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
             }
             if (INSTANCE.mWebviews != null && !INSTANCE.mWebviews.isEmpty()) {
                 for (int i = 0; i < INSTANCE.mWebviews.size(); i++) {
-                    INSTANCE.mWebviews.get(i).removeAllViews();
-                    INSTANCE.callParentDropMe(INSTANCE.mWebviews.get(i));
+                    final WebView webView = INSTANCE.mWebviews.get(i);
+                    webView.removeAllViews();
+                    INSTANCE.callParentDropMe(webView);
+                    webView = null;
                 }
                 INSTANCE.mWebviews.clear();
             }
@@ -315,8 +381,8 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
      * 重置页面，解决第二次加载失败的bug
      */
     private void resetPage() {
-        mWebView.loadUrl(BLANK_URL);
         mWebviews.clear();
+        mWebView.loadUrl(BLANK_URL);
     }
 
     /**
