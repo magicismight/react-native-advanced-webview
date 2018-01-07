@@ -321,7 +321,6 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
                     final WebView webView = INSTANCE.mWebviews.get(i);
                     webView.removeAllViews();
                     INSTANCE.callParentDropMe(webView);
-                    webView = null;
                 }
                 INSTANCE.mWebviews.clear();
             }
