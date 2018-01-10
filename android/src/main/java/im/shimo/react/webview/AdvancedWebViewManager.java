@@ -3,7 +3,6 @@ package im.shimo.react.webview;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.os.Build;
-import android.os.SystemClock;
 import android.support.annotation.Nullable;
 import android.text.InputType;
 import android.view.KeyEvent;
@@ -381,6 +380,9 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
      */
     private void resetPage() {
         mWebviews.clear();
+
+        // 禁用 JavaScript 防止有脚本阻止了页面的重置
+        mWebView.getSettings().setJavaScriptEnabled(false);
         mWebView.loadUrl(BLANK_URL);
     }
 
