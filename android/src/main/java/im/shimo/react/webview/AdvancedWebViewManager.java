@@ -382,6 +382,8 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
         mWebviews.clear();
 
         // 禁用 JavaScript 防止有脚本阻止了页面的重置
+        // 在重置页面之后不需要再次调用 .setJavaScriptEnabled(true)
+        // 下个 ReactWebView 在初始化的时候会去主动调用父类的 setJavaScriptEnabled
         mWebView.getSettings().setJavaScriptEnabled(false);
         mWebView.loadUrl(BLANK_URL);
     }
