@@ -14,8 +14,13 @@
 
 #import <objc/runtime.h>
 
+#import <UIKit/UIPasteboard.h>
+#import <MobileCoreServices/UTCoreTypes.h>
+
 NSString *const RNAdvancedWebJSNavigationScheme = @"react-js-navigation";
 NSString *const RNAdvancedWebViewJSPostMessageHost = @"postMessage";
+NSString *const RNAdvancedWebViewJSDataTransferSetHTMLHost = @"dataTransferSetHTML";
+NSString *const RNAdvancedWebViewJSDataTransferSetPlainTextHost = @"dataTransferSetPlainText";
 
 // runtime trick to remove WKWebView keyboard default toolbar
 // see: http://stackoverflow.com/questions/19033292/ios-7-uiwebview-keyboard-issue/19042279#19042279
@@ -296,10 +301,13 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
 {
     _webView.scrollView.delegate = nil;
     _webView.UIDelegate = nil;
+    _webView.navigationDelegate = nil;
+    [_webView loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:@"about:blank"]]];
     @try {
         [_webView removeObserver:self forKeyPath:@"estimatedProgress"];
     }
     @catch (NSException * __unused exception) {}
+    _webView = nil;
 }
 
 #pragma mark - NSKeyValueObserving
@@ -315,6 +323,29 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
         }
         _onProgress(@{@"progress": [change objectForKey:NSKeyValueChangeNewKey]});
     }
+}
+
+#pragma mark - UIPastboard inject
+
+// setHTML to Pastboard
+- (void)setHTMLDataToPasteboard:(NSString *)htmlString
+{
+    UIPasteboard* pasteboard = [UIPasteboard generalPasteboard];
+    NSString *htmlType = @"Apple Web Archive pasteboard type";
+
+    
+    NSMutableDictionary *resourceDictionary = [NSMutableDictionary dictionary];
+    
+    [resourceDictionary setObject:[htmlString dataUsingEncoding:NSUTF8StringEncoding]  forKey:@"WebResourceData"];
+    [resourceDictionary setObject:@"" forKey:@"WebResourceFrameName"];
+    [resourceDictionary setObject:@"text/html" forKey:@"WebResourceMIMEType"];
+    [resourceDictionary setObject:@"UTF-8" forKey:@"WebResourceTextEncodingName"];
+    [resourceDictionary setObject:[_webView.URL absoluteString] forKey:@"WebResourceURL"];
+    
+    NSDictionary *containerDictionary = [NSDictionary dictionaryWithObjectsAndKeys:resourceDictionary, @"WebMainResource", nil];
+    
+    NSDictionary *htmlItems = [NSDictionary dictionaryWithObjectsAndKeys:containerDictionary, htmlType, @"test", kUTTypeUTF8PlainText, nil];
+    [pasteboard setItems: [NSArray arrayWithObjects: htmlItems, nil]];
 }
 
 #pragma mark - WKNavigationDelegate
@@ -334,18 +365,27 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
     NSURL* url = request.URL;
     NSString* scheme = url.scheme;
     
-    BOOL isJSNavigation = [scheme isEqualToString:RCTJSNavigationScheme];
+    BOOL isJSNavigation = [scheme isEqualToString:RNAdvancedWebJSNavigationScheme];
     
     if (isJSNavigation) {
-        NSString *data = request.URL.query;
+        NSURL *url = request.URL;
+        NSString *data = url.query;
         data = [data stringByReplacingOccurrencesOfString:@"+" withString:@" "];
         data = [data stringByReplacingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
+        if ([url.host isEqualToString:RNAdvancedWebViewJSPostMessageHost]) {
+            
+            NSMutableDictionary<NSString *, id> *event = [self baseEvent];
+            [event addEntriesFromDictionary: @{
+                                               @"data": data,
+                                               }];
+            _onMessage(event);
+        } else if ([url.host isEqualToString:RNAdvancedWebViewJSDataTransferSetHTMLHost]) {
+            [self setHTMLDataToPasteboard:data];
+        } else if ([url.host isEqualToString:RNAdvancedWebViewJSDataTransferSetPlainTextHost]) {
+            [[UIPasteboard generalPasteboard] setItems:@[@{(NSString *)kUTTypePlainText: data}]];
+        }
         
-        NSMutableDictionary<NSString *, id> *event = [self baseEvent];
-        [event addEntriesFromDictionary: @{
-                                           @"data": data,
-                                           }];
-        _onMessage(event);
+
         decisionHandler(WKNavigationActionPolicyCancel);
         return;
     } else {
@@ -443,7 +483,24 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
                             ];
         [webView evaluateJavaScript:source completionHandler:nil];
     }
-
+    
+    // Polyfill for Clipboard API
+    NSString *dataTransferInjection = [NSString stringWithFormat:
+                                       @"(function () {;"
+                                       "var originSetData = DataTransfer.prototype.setData;"
+                                       "DataTransfer.prototype.setData = function (type, data) {debugger;"
+                                       "  var scheme = %@;"
+                                       "  var host = %@;"
+                                       "  if (type === 'text/html') {"
+                                       "    host = %@;"
+                                       "  } else if (type !== 'text/plain') {"
+                                       "    originSetData.call(this, type, data);"
+                                       "    return;"
+                                       "  }"
+                                       "  setTimeout(function () {window.location = scheme + '//' + host + '?' + encodeURIComponent(String(data));});"
+                                       "};"
+                                       "})();", RNAdvancedWebJSNavigationScheme, RNAdvancedWebViewJSDataTransferSetPlainTextHost, RNAdvancedWebViewJSDataTransferSetHTMLHost];
+    [webView evaluateJavaScript:dataTransferInjection completionHandler:nil];
     if (_injectedJavaScript) {
         if (_onLoadingFinish) {
             [webView evaluateJavaScript:_injectedJavaScript completionHandler:^(id result, NSError *error) {
