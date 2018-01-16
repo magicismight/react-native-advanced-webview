@@ -344,7 +344,7 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
     
     NSDictionary *containerDictionary = [NSDictionary dictionaryWithObjectsAndKeys:resourceDictionary, @"WebMainResource", nil];
     
-    NSDictionary *htmlItems = [NSDictionary dictionaryWithObjectsAndKeys:containerDictionary, htmlType, @"test", kUTTypeUTF8PlainText, nil];
+    NSDictionary *htmlItems = [NSDictionary dictionaryWithObjectsAndKeys:containerDictionary, htmlType, nil];
     [pasteboard setItems: [NSArray arrayWithObjects: htmlItems, nil]];
 }
 
