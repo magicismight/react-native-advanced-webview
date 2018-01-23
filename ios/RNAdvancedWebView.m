@@ -312,8 +312,8 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
     _webView.UIDelegate = nil;
     _webView.navigationDelegate = nil;
     [_webView loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:@"about:blank"]]];
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
     @try {
-        [[NSNotificationCenter defaultCenter] removeObserver:self];
         [_webView removeObserver:self forKeyPath:@"estimatedProgress"];
     }
     @catch (NSException * __unused exception) {}
