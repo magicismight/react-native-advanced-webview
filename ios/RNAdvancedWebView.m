@@ -19,9 +19,8 @@
 
 NSString *const RNAdvancedWebJSNavigationScheme = @"react-js-navigation";
 NSString *const RNAdvancedWebViewJSPostMessageHost = @"postMessage";
-NSString *const RNAdvancedWebViewJSDataTransferSetHTMLHost = @"dataTransferSetHTML";
-NSString *const RNAdvancedWebViewJSDataTransferSetPlainTextHost = @"dataTransferSetPlainText";
-
+NSString *const RNAdvancedWebViewJSDataTransferSetHost = @"dataTransferSet";
+NSString *const RNAdvancedWebViewHtmlType = @"Apple Web Archive pasteboard type";
 // runtime trick to remove WKWebView keyboard default toolbar
 // see: http://stackoverflow.com/questions/19033292/ios-7-uiwebview-keyboard-issue/19042279#19042279
 @interface _SwizzleHelperWK : NSObject
@@ -92,6 +91,12 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
         } @catch (NSException *exception) {
             NSLog(@"%@", exception);
         }
+        @try {
+            [preferences setValue:[NSNumber numberWithBool:YES] forKey:@"javaScriptCanAccessClipboard"];
+        } @catch (NSException *exception) {
+            NSLog(@"%@", exception);
+        }
+        
         config.preferences = preferences;
         
         _webView = [[WKWebView alloc] initWithFrame:self.bounds configuration:config];
@@ -100,6 +105,15 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
         _webView.scrollView.delegate = self;
         
         [_webView addObserver:self forKeyPath:@"estimatedProgress" options:NSKeyValueObservingOptionNew context:nil];
+        [[NSNotificationCenter defaultCenter] addObserver:self
+                                                 selector:@selector(pasteboardChangedNotification:)
+                                                     name:UIPasteboardChangedNotification
+                                                   object:nil];
+        [[NSNotificationCenter defaultCenter] addObserver:self
+                                                 selector:@selector(pasteboardChangedNotification:)
+                                                     name:UIApplicationDidBecomeActiveNotification
+                                                   object:nil];
+        [self injectDataTransferGetData];
         [self addSubview:_webView];
     }
     return self;
@@ -304,6 +318,7 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
     _webView.navigationDelegate = nil;
     [_webView loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:@"about:blank"]]];
     @try {
+        [[NSNotificationCenter defaultCenter] removeObserver:self];
         [_webView removeObserver:self forKeyPath:@"estimatedProgress"];
     }
     @catch (NSException * __unused exception) {}
@@ -327,25 +342,67 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
 
 #pragma mark - UIPastboard inject
 
-// setHTML to Pastboard
-- (void)setHTMLDataToPasteboard:(NSString *)htmlString
-{
-    UIPasteboard* pasteboard = [UIPasteboard generalPasteboard];
-    NSString *htmlType = @"Apple Web Archive pasteboard type";
+- (void)pasteboardChangedNotification:(NSNotification*)notification {
+    [self injectDataTransferGetData];
+}
 
+// Set data from JavaScript to Pastboard
+- (void)setDataToPasteboard:(NSString *)dataString
+{
+    NSRange range = [dataString rangeOfString:@","];
+    NSString *type = [dataString substringToIndex:range.location];
+    NSString *data = [dataString substringFromIndex:range.location + range.length];
+    UIPasteboard *clipboard = [UIPasteboard generalPasteboard];
     
-    NSMutableDictionary *resourceDictionary = [NSMutableDictionary dictionary];
+    if ([type isEqualToString:@"text/html"]) {
+        NSMutableDictionary *resourceDictionary = [NSMutableDictionary dictionary];
+        
+        [resourceDictionary setObject:[data dataUsingEncoding:NSUTF8StringEncoding]  forKey:@"WebResourceData"];
+        [resourceDictionary setObject:@"" forKey:@"WebResourceFrameName"];
+        [resourceDictionary setObject:@"text/html" forKey:@"WebResourceMIMEType"];
+        [resourceDictionary setObject:@"UTF-8" forKey:@"WebResourceTextEncodingName"];
+        [resourceDictionary setObject:[_webView.URL absoluteString] forKey:@"WebResourceURL"];
+        
+        NSDictionary *containerDictionary = [NSDictionary dictionaryWithObjectsAndKeys:resourceDictionary, @"WebMainResource", nil];
+        NSDictionary *htmlItems = [NSDictionary dictionaryWithObjectsAndKeys:containerDictionary, RNAdvancedWebViewHtmlType, nil];
+        [clipboard addItems: [NSArray arrayWithObjects: htmlItems, nil]];
+    } else if ([type isEqualToString:@"text/plain"]) {
+        clipboard.string = data;
+    }
+}
+
+- (void)injectDataTransferGetData {
+    UIPasteboard *pasteBoard = [UIPasteboard generalPasteboard];
+    NSArray<NSDictionary<NSString *, id> *> *items = [pasteBoard items];
+    NSString *htmlString = @"";
+    for (NSDictionary *item in items) {
+        NSData *archiveData = [item objectForKey:RNAdvancedWebViewHtmlType];
+        if (archiveData) {
+            NSError* error = nil;
+            id webArchive = [NSPropertyListSerialization propertyListWithData:(NSData *)archiveData
+                                                                      options:NSPropertyListImmutable
+                                                                       format:NULL error:&error];
+            NSData *webResourceData = [[webArchive objectForKey:@"WebMainResource"] objectForKey:@"WebResourceData"];
+            htmlString = [[NSString alloc] initWithData:webResourceData encoding:NSUTF8StringEncoding];
+            htmlString = [htmlString stringByReplacingOccurrencesOfString:@"\\" withString:@"\\\\"];
+        }
+    }
     
-    [resourceDictionary setObject:[htmlString dataUsingEncoding:NSUTF8StringEncoding]  forKey:@"WebResourceData"];
-    [resourceDictionary setObject:@"" forKey:@"WebResourceFrameName"];
-    [resourceDictionary setObject:@"text/html" forKey:@"WebResourceMIMEType"];
-    [resourceDictionary setObject:@"UTF-8" forKey:@"WebResourceTextEncodingName"];
-    [resourceDictionary setObject:[_webView.URL absoluteString] forKey:@"WebResourceURL"];
-    
-    NSDictionary *containerDictionary = [NSDictionary dictionaryWithObjectsAndKeys:resourceDictionary, @"WebMainResource", nil];
-    
-    NSDictionary *htmlItems = [NSDictionary dictionaryWithObjectsAndKeys:containerDictionary, htmlType, nil];
-    [pasteboard setItems: [NSArray arrayWithObjects: htmlItems, nil]];
+    // Override DataTransfer.prototype.getData
+    NSString *dataTransferInjection = [NSString stringWithFormat:
+                                       @"(function () {"
+                                       "if (!window.originDataTransferGetData) {"
+                                       "  window.originDataTransferGetData = DataTransfer.prototype.getData;"
+                                       "}"
+                                       "DataTransfer.prototype.getData = function (type, data) {"
+                                       "  if (type === 'text/html') {"
+                                       "    return '%@';"
+                                       "  } else {"
+                                       "    return window.originDataTransferGetData.call(this, type, data);"
+                                       "  }"
+                                       "};"
+                                       "})();", htmlString];
+    [_webView evaluateJavaScript:dataTransferInjection completionHandler:nil];
 }
 
 #pragma mark - WKNavigationDelegate
@@ -379,10 +436,8 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
                                                @"data": data,
                                                }];
             _onMessage(event);
-        } else if ([url.host isEqualToString:RNAdvancedWebViewJSDataTransferSetHTMLHost]) {
-            [self setHTMLDataToPasteboard:data];
-        } else if ([url.host isEqualToString:RNAdvancedWebViewJSDataTransferSetPlainTextHost]) {
-            [[UIPasteboard generalPasteboard] setItems:@[@{(NSString *)kUTTypePlainText: data}]];
+        } else if ([url.host isEqualToString:RNAdvancedWebViewJSDataTransferSetHost]) {
+            [self setDataToPasteboard:data];
         }
         
 
@@ -487,19 +542,23 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
     // Polyfill for Clipboard API
     NSString *dataTransferInjection = [NSString stringWithFormat:
                                        @"(function () {;"
-                                       "var originSetData = DataTransfer.prototype.setData;"
-                                       "DataTransfer.prototype.setData = function (type, data) {debugger;"
-                                       "  var scheme = %@;"
-                                       "  var host = %@;"
-                                       "  if (type === 'text/html') {"
-                                       "    host = %@;"
-                                       "  } else if (type !== 'text/plain') {"
-                                       "    originSetData.call(this, type, data);"
-                                       "    return;"
+                                       "var messageStack = [];"
+                                       "var executing = false;"
+                                       "function executeStack() {"
+                                       "  var message = messageStack.shift();"
+                                       "  if (message) {"
+                                       "    executing = true;"
+                                       "    window.location = message;"
+                                       "    setTimeout(executeStack);"
+                                       "  } else {"
+                                       "    executing = false;"
                                        "  }"
-                                       "  setTimeout(function () {window.location = scheme + '//' + host + '?' + encodeURIComponent(String(data));});"
                                        "};"
-                                       "})();", RNAdvancedWebJSNavigationScheme, RNAdvancedWebViewJSDataTransferSetPlainTextHost, RNAdvancedWebViewJSDataTransferSetHTMLHost];
+                                       "DataTransfer.prototype.setData = function (type, data) {"
+                                       "  messageStack.push('%@://%@?' + encodeURIComponent(type + ',' + data));"
+                                       "  if (!executing) executeStack();"
+                                       "};"
+                                       "})();", RNAdvancedWebJSNavigationScheme, RNAdvancedWebViewJSDataTransferSetHost];
     [webView evaluateJavaScript:dataTransferInjection completionHandler:nil];
     if (_injectedJavaScript) {
         if (_onLoadingFinish) {
