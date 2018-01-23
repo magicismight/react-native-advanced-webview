@@ -91,11 +91,6 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
         } @catch (NSException *exception) {
             NSLog(@"%@", exception);
         }
-        @try {
-            [preferences setValue:[NSNumber numberWithBool:YES] forKey:@"javaScriptCanAccessClipboard"];
-        } @catch (NSException *exception) {
-            NSLog(@"%@", exception);
-        }
         
         config.preferences = preferences;
         
