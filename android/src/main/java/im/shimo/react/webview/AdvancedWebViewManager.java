@@ -19,7 +19,6 @@ import android.webkit.GeolocationPermissions;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
 import android.webkit.WebView;
-import android.widget.Toast;
 
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.ReactMethod;
@@ -41,9 +40,9 @@ import com.facebook.react.views.webview.WebViewConfig;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
-import java.util.Locale;
 
 public class AdvancedWebViewManager extends ReactWebViewManager {
 
@@ -99,6 +98,7 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
             "   document.dispatchEvent(new CustomEvent('ReactNativeContextReady'));" +
             "})()";
     private LinkedHashMap<Integer, String> mMenuIdTitles = new LinkedHashMap();
+    private ArrayList<String> mWhiteList = new ArrayList<>();
 
     public AdvancedWebViewManager() {
         super();
@@ -116,6 +116,10 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
 
     public LinkedHashMap<Integer, String> getMenuIdTitles() {
         return mMenuIdTitles;
+    }
+
+    public ArrayList<String> getMenuIdTitlesWhiteList() {
+        return mWhiteList;
     }
 
     private static class SingHolder {
@@ -288,8 +292,7 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
         private ActionMode resolveActionMode(ActionMode actionMode) {
             if (actionMode != null) {
                 final Menu menu = actionMode.getMenu();
-                //把除全选，复制，粘贴，剪切以外的给清除掉
-                //有些系统会自动添加一个API DEMO 选项，直接删除
+                //删除系统自带item
                 deleteOtherItem(actionMode);
                 //配置点击事件
                 configMenuItem(menu);
@@ -326,62 +329,34 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
         }
 
         private void deleteOtherItem(ActionMode actionMode) {
-            int language = languageKind();
             Menu oldMenu = actionMode.getMenu();
-            for (int i = 0; i < oldMenu.size(); i++) {
-                MenuItem item = oldMenu.getItem(i);
-                String titleStr = item.getTitle().toString();
-                if (titleStr.toLowerCase().contains("demo")) {
-                    oldMenu.removeItem(item.getItemId());
-                    continue;
-                }
-                if (language == 0) {
-                    dealChinese(oldMenu, item, titleStr);
-                    continue;
-                } else if (language == 1) {
-                    dealEnglish(oldMenu, item, titleStr);
-                    continue;
-                } else {
-                    //其它语言的不做处理
+            ArrayList<String> whiteLists = getInstance().getMenuIdTitlesWhiteList();
+            if (whiteLists.isEmpty()) {
+                oldMenu.clear();
+            } else {
+                for (int i = 0; i < oldMenu.size(); i++) {
+                    MenuItem item = oldMenu.getItem(i);
+                    String titleStr = item.getTitle().toString();
+                    if (isToDelete(whiteLists, titleStr)) {
+                        oldMenu.removeItem(item.getItemId());
+                        i--;
+                    }
                 }
             }
         }
 
-        private void dealEnglish(Menu oldMenu, MenuItem item, String titleStr) {
-            titleStr = titleStr.toLowerCase().trim().replaceAll(" ","").replace("-","");
-            if (titleStr.equals("selectall")
-                    || titleStr.equals("cut")
-                    || titleStr.equals("copy")
-                    || titleStr.equals("paste")) {
-                return;
+        /**
+         * 白名单的保留
+         *
+         * @param whiteLists
+         * @param titleStr
+         */
+        private boolean isToDelete(ArrayList<String> whiteLists, String titleStr) {
+            if (whiteLists.indexOf(titleStr) >= 0) {
+                return false;
             } else {
-                oldMenu.removeItem(item.getItemId());
+                return true;
             }
-        }
-
-        private void dealChinese(Menu oldMenu, MenuItem item, String titleStr) {
-            if (titleStr.equals("全选")
-                    || titleStr.equals("复制")
-                    || titleStr.equals("粘贴")
-                    || titleStr.equals("剪切")) {
-                return;
-            } else {
-                oldMenu.removeItem(item.getItemId());
-            }
-        }
-
-        private int languageKind() {
-            Locale locale = getResources().getConfiguration().locale;
-            if (locale.equals(Locale.CHINA)
-                    || locale.equals(Locale.CHINESE)
-                    || locale.equals(Locale.SIMPLIFIED_CHINESE)
-                    || locale.equals(Locale.TRADITIONAL_CHINESE)) {
-                return 0;
-            }
-            if (locale.equals(Locale.ENGLISH) || locale.equals(Locale.UK) || locale.equals(Locale.US)) {
-                return 1;
-            }
-            return -1;
         }
 
         /**
@@ -638,14 +613,14 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
     /**
      * 焦点变化时调用
      * <p>
-     * 对页面小白条的初始化工作,存储顺序即为展现顺序,id必须唯一且最好用数字字符串
+     * 对页面小白条的初始化工作,存储顺序即为展现顺序,id必须唯一且最好用数字字符串，不要从10以内的数字开始
      *
      * @param idTitles key:每个item所对应的id，value:每个item的title
      */
     @ReactMethod
     public void setActionModeMenu(ReadableMap idTitles) {
         mMenuIdTitles.clear();
-        if(idTitles==null) {
+        if (idTitles == null) {
             return;
         }
         ReadableMapKeySetIterator it = idTitles.keySetIterator();
@@ -654,6 +629,26 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
             String title = idTitles.getString(key);
             int id = Integer.valueOf(key);
             mMenuIdTitles.put(id, title);
+        }
+    }
+
+    /**
+     * 焦点变化时调用，或者界面的规则一致时只调用一次即可
+     * <p>
+     * 对页面小白条的初始化工作,加入进来的title，如果系统本身自带的title与之相同将不会被删除
+     * 例如"复制"，传入的列表内包含"复制"，那么系统的将被保留，如果不包含，系统所带的"复制"将被删除
+     *
+     * @param titles 白名单列表
+     */
+    @ReactMethod
+    public void setActionModeMenuWhitelist(ReadableArray titles) {
+        mWhiteList.clear();
+        if (titles == null) {
+            return;
+        }
+        for (Object title :
+                titles.toArrayList()) {
+            mWhiteList.add((String) title);
         }
     }
 }
