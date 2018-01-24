@@ -5,7 +5,10 @@ import android.content.Context;
 import android.os.Build;
 import android.support.annotation.Nullable;
 import android.text.InputType;
+import android.view.ActionMode;
 import android.view.KeyEvent;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.ViewGroup;
 import android.view.inputmethod.BaseInputConnection;
 import android.view.inputmethod.EditorInfo;
@@ -16,9 +19,16 @@ import android.webkit.GeolocationPermissions;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
 import android.webkit.WebView;
+import android.widget.Toast;
 
+import com.facebook.react.bridge.Arguments;
+import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableArray;
+import com.facebook.react.bridge.ReadableMap;
+import com.facebook.react.bridge.ReadableMapKeySetIterator;
+import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.common.build.ReactBuildConfig;
+import com.facebook.react.modules.core.DeviceEventManagerModule.RCTDeviceEventEmitter;
 import com.facebook.react.uimanager.NativeViewHierarchyManager;
 import com.facebook.react.uimanager.ThemedReactContext;
 import com.facebook.react.uimanager.UIBlock;
@@ -31,7 +41,9 @@ import com.facebook.react.views.webview.WebViewConfig;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
+import java.util.Locale;
 
 public class AdvancedWebViewManager extends ReactWebViewManager {
 
@@ -86,6 +98,7 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
             "   };" +
             "   document.dispatchEvent(new CustomEvent('ReactNativeContextReady'));" +
             "})()";
+    private LinkedHashMap<Integer, String> mMenuIdTitles = new LinkedHashMap();
 
     public AdvancedWebViewManager() {
         super();
@@ -97,9 +110,24 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
         INSTANCE = this;
     }
 
+    public static AdvancedWebViewManager getInstance() {
+        return SingHolder.INSTANCE;
+    }
+
+    public LinkedHashMap<Integer, String> getMenuIdTitles() {
+        return mMenuIdTitles;
+    }
+
+    private static class SingHolder {
+        private static final AdvancedWebViewManager INSTANCE = AdvancedWebViewManager.INSTANCE;
+    }
+
 
     @SuppressLint("ViewConstructor")
     protected static class AdvancedWebView extends ReactWebView {
+        private static final String ACTION_MENU_SELECTED = "actionMenuSelected";
+        private final RCTDeviceEventEmitter mEventEmitter;
+        private ActionMode mActionMode;
         private boolean mMessagingEnabled = false;
         private boolean mKeyboardDisplayRequiresUserAction = false;
         private InputMethodManager mInputMethodManager = (InputMethodManager) getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
@@ -108,6 +136,7 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
         public AdvancedWebView(ThemedReactContext reactContext) {
             super(reactContext);
             mNativeModule = reactContext.getNativeModule(UIManagerModule.class);
+            mEventEmitter = reactContext.getJSModule(RCTDeviceEventEmitter.class);
         }
 
         /**
@@ -239,6 +268,132 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
             }
         }
 
+        @Override
+        public ActionMode startActionMode(ActionMode.Callback callback) {
+            ActionMode actionMode = super.startActionMode(callback);
+            return resolveActionMode(actionMode);
+        }
+
+        @Override
+        public ActionMode startActionMode(ActionMode.Callback callback, int type) {
+            ActionMode actionMode = super.startActionMode(callback, type);
+            return resolveActionMode(actionMode);
+        }
+
+        /**
+         * 处理item，处理点击
+         *
+         * @param actionMode
+         */
+        private ActionMode resolveActionMode(ActionMode actionMode) {
+            if (actionMode != null) {
+                final Menu menu = actionMode.getMenu();
+                //把除全选，复制，粘贴，剪切以外的给清除掉
+                //有些系统会自动添加一个API DEMO 选项，直接删除
+                deleteOtherItem(actionMode);
+                //配置点击事件
+                configMenuItem(menu);
+            }
+            mActionMode = actionMode;
+            return actionMode;
+        }
+
+        private void configMenuItem(Menu menu) {
+            int index = 0;
+            LinkedHashMap<Integer, String> menuIdTitles = getInstance().getMenuIdTitles();
+            for (Integer id : menuIdTitles.keySet()) {
+                menu.add(0, id, index, menuIdTitles.get(id));
+                MenuItem menuItem = menu.getItem(index);
+                menuItem.setOnMenuItemClickListener(new MenuItem.OnMenuItemClickListener() {
+                    @Override
+                    public boolean onMenuItemClick(MenuItem item) {
+                        //事件传递
+                        sendEvent(item);
+                        releaseAction();
+                        return true;
+                    }
+                });
+                index++;
+            }
+        }
+
+
+        private void sendEvent(MenuItem menuItem) {
+            WritableMap params = Arguments.createMap();
+            params.putString("menuId", String.valueOf(menuItem.getItemId()));
+            params.putString("menuTitle", menuItem.getTitle().toString());
+            mEventEmitter.emit(ACTION_MENU_SELECTED, params);
+        }
+
+        private void deleteOtherItem(ActionMode actionMode) {
+            int language = languageKind();
+            Menu oldMenu = actionMode.getMenu();
+            for (int i = 0; i < oldMenu.size(); i++) {
+                MenuItem item = oldMenu.getItem(i);
+                String titleStr = item.getTitle().toString();
+                if (titleStr.toLowerCase().contains("demo")) {
+                    oldMenu.removeItem(item.getItemId());
+                    continue;
+                }
+                if (language == 0) {
+                    dealChinese(oldMenu, item, titleStr);
+                    continue;
+                } else if (language == 1) {
+                    dealEnglish(oldMenu, item, titleStr);
+                    continue;
+                } else {
+                    //其它语言的不做处理
+                }
+            }
+        }
+
+        private void dealEnglish(Menu oldMenu, MenuItem item, String titleStr) {
+            titleStr = titleStr.toLowerCase().trim().replaceAll(" ","").replace("-","");
+            if (titleStr.equals("selectall")
+                    || titleStr.equals("cut")
+                    || titleStr.equals("copy")
+                    || titleStr.equals("paste")) {
+                return;
+            } else {
+                oldMenu.removeItem(item.getItemId());
+            }
+        }
+
+        private void dealChinese(Menu oldMenu, MenuItem item, String titleStr) {
+            if (titleStr.equals("全选")
+                    || titleStr.equals("复制")
+                    || titleStr.equals("粘贴")
+                    || titleStr.equals("剪切")) {
+                return;
+            } else {
+                oldMenu.removeItem(item.getItemId());
+            }
+        }
+
+        private int languageKind() {
+            Locale locale = getResources().getConfiguration().locale;
+            if (locale.equals(Locale.CHINA)
+                    || locale.equals(Locale.CHINESE)
+                    || locale.equals(Locale.SIMPLIFIED_CHINESE)
+                    || locale.equals(Locale.TRADITIONAL_CHINESE)) {
+                return 0;
+            }
+            if (locale.equals(Locale.ENGLISH) || locale.equals(Locale.UK) || locale.equals(Locale.US)) {
+                return 1;
+            }
+            return -1;
+        }
+
+        /**
+         * 隐藏消失Action
+         */
+        private void releaseAction() {
+            if (mActionMode != null) {
+                mActionMode.finish();
+                mActionMode = null;
+            }
+        }
+
     }
 
 
@@ -281,14 +436,14 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
      * 此方法在程序销毁时调用
      */
     public static void webviewOnDestroy() {
-        if (INSTANCE != null) {
-            if (INSTANCE.mWebviews != null && !INSTANCE.mWebviews.isEmpty()) {
-                for (int i = 0; i < INSTANCE.mWebviews.size(); i++) {
-                    final WebView webView = INSTANCE.mWebviews.get(i);
+        if (getInstance() != null) {
+            if (getInstance().mWebviews != null && !getInstance().mWebviews.isEmpty()) {
+                for (int i = 0; i < getInstance().mWebviews.size(); i++) {
+                    final WebView webView = getInstance().mWebviews.get(i);
                     webView.removeAllViews();
-                    INSTANCE.callParentDropMe(webView);
+                    getInstance().callParentDropMe(webView);
                 }
-                INSTANCE.mWebviews.clear();
+                getInstance().mWebviews.clear();
             }
             INSTANCE = null;
         }
@@ -380,7 +535,7 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
      * @return
      */
     @SuppressLint("SetJavaScriptEnabled")
-    public AdvancedWebView initWebview(ThemedReactContext reactContext) {
+    public AdvancedWebView initWebview(final ThemedReactContext reactContext) {
         AdvancedWebView webView = new AdvancedWebView(reactContext);
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
@@ -480,4 +635,25 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
         ((AdvancedWebView) root).setKeyboardDisplayRequiresUserAction(keyboardDisplayRequiresUserAction);
     }
 
+    /**
+     * 焦点变化时调用
+     * <p>
+     * 对页面小白条的初始化工作,存储顺序即为展现顺序,id必须唯一且最好用数字字符串
+     *
+     * @param idTitles key:每个item所对应的id，value:每个item的title
+     */
+    @ReactMethod
+    public void setActionModeMenu(ReadableMap idTitles) {
+        mMenuIdTitles.clear();
+        if(idTitles==null) {
+            return;
+        }
+        ReadableMapKeySetIterator it = idTitles.keySetIterator();
+        while (it.hasNextKey()) {
+            String key = it.nextKey();
+            String title = idTitles.getString(key);
+            int id = Integer.valueOf(key);
+            mMenuIdTitles.put(id, title);
+        }
+    }
 }
