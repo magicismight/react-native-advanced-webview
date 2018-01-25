@@ -97,8 +97,8 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
             "   };" +
             "   document.dispatchEvent(new CustomEvent('ReactNativeContextReady'));" +
             "})()";
-    private LinkedHashMap<Integer, String> mMenuIdTitles = new LinkedHashMap();
-    private ArrayList<String> mWhiteList = new ArrayList<>();
+    private LinkedHashMap<Integer, String> mMenuIdTitles;
+    private ArrayList<String> mWhiteList;
 
     public AdvancedWebViewManager() {
         super();
@@ -275,12 +275,20 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
         @Override
         public ActionMode startActionMode(ActionMode.Callback callback) {
             ActionMode actionMode = super.startActionMode(callback);
+            if (getInstance().getMenuIdTitles() == null && getInstance().getMenuIdTitlesWhiteList() == null) {
+                //既没有设置自定义item也没有设置白名单就不用处理
+                return actionMode;
+            }
             return resolveActionMode(actionMode);
         }
 
         @Override
         public ActionMode startActionMode(ActionMode.Callback callback, int type) {
             ActionMode actionMode = super.startActionMode(callback, type);
+            if (getInstance().getMenuIdTitles() == null && getInstance().getMenuIdTitlesWhiteList() == null) {
+                //既没有设置自定义item也没有设置白名单就不用处理
+                return actionMode;
+            }
             return resolveActionMode(actionMode);
         }
 
@@ -301,9 +309,32 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
             return actionMode;
         }
 
+        private void deleteOtherItem(ActionMode actionMode) {
+            ArrayList<String> whiteLists = getInstance().getMenuIdTitlesWhiteList();
+            Menu oldMenu = actionMode.getMenu();
+            if (whiteLists == null || whiteLists.isEmpty()) {
+                //没有设置白名单或者白名单本身就是空数据，系统的全删除
+                oldMenu.clear();
+            } else {
+                for (int i = 0; i < oldMenu.size(); i++) {
+                    MenuItem item = oldMenu.getItem(i);
+                    String titleStr = item.getTitle().toString();
+                    if (isToDelete(whiteLists, titleStr)) {
+                        oldMenu.removeItem(item.getItemId());
+                        i--;
+                    }
+                }
+            }
+        }
+
+
         private void configMenuItem(Menu menu) {
             int index = 0;
             LinkedHashMap<Integer, String> menuIdTitles = getInstance().getMenuIdTitles();
+            if (menuIdTitles == null || menuIdTitles.isEmpty()) {
+                //没有添加自定义item
+                return;
+            }
             for (Integer id : menuIdTitles.keySet()) {
                 menu.add(0, id, index, menuIdTitles.get(id));
                 MenuItem menuItem = menu.getItem(index);
@@ -320,31 +351,6 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
             }
         }
 
-
-        private void sendEvent(MenuItem menuItem) {
-            WritableMap params = Arguments.createMap();
-            params.putString("menuId", String.valueOf(menuItem.getItemId()));
-            params.putString("menuTitle", menuItem.getTitle().toString());
-            mEventEmitter.emit(ACTION_MENU_SELECTED, params);
-        }
-
-        private void deleteOtherItem(ActionMode actionMode) {
-            Menu oldMenu = actionMode.getMenu();
-            ArrayList<String> whiteLists = getInstance().getMenuIdTitlesWhiteList();
-            if (whiteLists.isEmpty()) {
-                oldMenu.clear();
-            } else {
-                for (int i = 0; i < oldMenu.size(); i++) {
-                    MenuItem item = oldMenu.getItem(i);
-                    String titleStr = item.getTitle().toString();
-                    if (isToDelete(whiteLists, titleStr)) {
-                        oldMenu.removeItem(item.getItemId());
-                        i--;
-                    }
-                }
-            }
-        }
-
         /**
          * 白名单的保留
          *
@@ -357,6 +363,13 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
             } else {
                 return true;
             }
+        }
+
+        private void sendEvent(MenuItem menuItem) {
+            WritableMap params = Arguments.createMap();
+            params.putString("menuId", String.valueOf(menuItem.getItemId()));
+            params.putString("menuTitle", menuItem.getTitle().toString());
+            mEventEmitter.emit(ACTION_MENU_SELECTED, params);
         }
 
         /**
@@ -611,7 +624,7 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
     }
 
     /**
-     * 焦点变化时调用
+     * 焦点变化时调用（既没有设置自定义item也没有是设置白名单<mMenuIdTitles==null&&mWhiteList==null>，即为不使用自定义ActionMode）
      * <p>
      * 对页面小白条的初始化工作,存储顺序即为展现顺序,id必须唯一且最好用数字字符串，不要从10以内的数字开始
      *
@@ -619,7 +632,9 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
      */
     @ReactMethod
     public void setActionModeMenu(ReadableMap idTitles) {
-        mMenuIdTitles.clear();
+        if (mMenuIdTitles != null) {
+            mMenuIdTitles.clear();
+        }
         if (idTitles == null) {
             return;
         }
@@ -633,7 +648,7 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
     }
 
     /**
-     * 焦点变化时调用，或者界面的规则一致时只调用一次即可
+     * 焦点变化时调用，或者界面的规则一致时只调用一次即可（既没有设置自定义item也没有是设置白名单<mMenuIdTitles==null&&mWhiteList==null>，即为不使用自定义ActionMode）
      * <p>
      * 对页面小白条的初始化工作,加入进来的title，如果系统本身自带的title与之相同将不会被删除
      * 例如"复制"，传入的列表内包含"复制"，那么系统的将被保留，如果不包含，系统所带的"复制"将被删除
@@ -642,7 +657,9 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
      */
     @ReactMethod
     public void setActionModeMenuWhitelist(ReadableArray titles) {
-        mWhiteList.clear();
+        if (mWhiteList != null) {
+            mWhiteList.clear();
+        }
         if (titles == null) {
             return;
         }
