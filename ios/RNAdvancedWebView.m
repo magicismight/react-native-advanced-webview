@@ -338,7 +338,9 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
 #pragma mark - UIPastboard inject
 
 - (void)pasteboardChangedNotification:(NSNotification*)notification {
-    [self injectDataTransferGetData];
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self injectDataTransferGetData];
+    });
 }
 
 // Set data from JavaScript to Pastboard
