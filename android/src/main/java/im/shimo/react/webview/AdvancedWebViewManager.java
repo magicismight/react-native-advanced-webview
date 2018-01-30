@@ -394,8 +394,8 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
     public void onDropViewInstance(WebView webView) {
         if (mWebviews.size() == 1) {
             //全部退出了，只剩下默认webview，休眠并保留它
-            callParentDropMe(webView);
             resetPage(webView);
+            callParentDropMe(webView);
         } else if (mWebviews.size() > 1) {
             //多页面覆盖方式，所以需要把默认的角标从最上层移至下一层
             //先取出最上层
@@ -428,8 +428,7 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
             if (getInstance().mWebviews != null && !getInstance().mWebviews.isEmpty()) {
                 for (int i = 0; i < getInstance().mWebviews.size(); i++) {
                     final WebView webView = getInstance().mWebviews.get(i);
-                    webView.removeAllViews();
-                    getInstance().callParentDropMe(webView);
+                    getInstance().destroyWebView(webView);
                 }
                 getInstance().mWebviews.clear();
             }
@@ -437,7 +436,14 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
         }
     }
 
+    /**
+     * 父类已经做了clear和destroy操作，这里不必重复
+     *
+     * @param webView
+     */
     private void destroyWebView(WebView webView) {
+        webView.getSettings().setJavaScriptEnabled(false);
+        webView.loadUrl(BLANK_URL);
         webView.removeAllViews();
         callParentDropMe(webView);
     }
@@ -468,6 +474,7 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
      * @param reactContext
      * @return
      */
+    @SuppressLint("SetJavaScriptEnabled")
     @Override
     protected WebView createViewInstance(ThemedReactContext reactContext) {
         AdvancedWebView webView = null;
@@ -483,6 +490,7 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
             //赋值
             webView = mWebviews.get(0);
             webView.resumeTimers();
+            webView.getSettings().setJavaScriptEnabled(true);
         } else if (mWebviews.getLast().getParent() != null) {
             //非首次打开，文档中开启文档
             //休眠其它的webview
@@ -512,6 +520,7 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
         // 禁用 JavaScript 防止有脚本阻止了页面的重置
         // 在重置页面之后不需要再次调用 .setJavaScriptEnabled(true)
         // 下个 ReactWebView 在初始化的时候会去主动调用父类的 setJavaScriptEnabled
+        webView.stopLoading();
         webView.getSettings().setJavaScriptEnabled(false);
         webView.loadUrl(BLANK_URL);
     }
