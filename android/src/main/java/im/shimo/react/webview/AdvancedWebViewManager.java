@@ -474,6 +474,7 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
      * @param reactContext
      * @return
      */
+    @SuppressLint("SetJavaScriptEnabled")
     @Override
     protected WebView createViewInstance(ThemedReactContext reactContext) {
         AdvancedWebView webView = null;
@@ -489,6 +490,7 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
             //赋值
             webView = mWebviews.get(0);
             webView.resumeTimers();
+            webView.getSettings().setJavaScriptEnabled(true);
         } else if (mWebviews.getLast().getParent() != null) {
             //非首次打开，文档中开启文档
             //休眠其它的webview
