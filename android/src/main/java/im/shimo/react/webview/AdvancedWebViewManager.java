@@ -264,9 +264,15 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
             super.onWindowVisibilityChanged(visibility);
             if (visibility != mVisibility) {
                 if (visibility == VISIBLE) {
+                    //切入前台恢复使用cpu
+                    onResume();
                     resumeTimers();
+                    getSettings().setJavaScriptEnabled(true);
                 } else {
+                    //切入后台释放cpu
+                    onPause();
                     pauseTimers();
+                    getSettings().setJavaScriptEnabled(false);
                 }
                 mVisibility = visibility;
             }
@@ -394,28 +400,35 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
     public void onDropViewInstance(WebView webView) {
         if (mWebviews.size() == 1) {
             //全部退出了，只剩下默认webview，休眠并保留它
-            resetPage(webView);
-            callParentDropMe(webView);
+            dumpWebView(webView);
         } else if (mWebviews.size() > 1) {
             //多页面覆盖方式，所以需要把默认的角标从最上层移至下一层
             //先取出最上层
             mWebviews.remove(webView);
             //将最上层销毁
-            destroyWebView(webView);
+            dumpWebView(webView);
             super.onDropViewInstance(webView);
             //设置下一层为默认webview
             //唤醒下一层
-            mWebviews.getLast().resumeTimers();
+            resumeWebview(mWebviews.getLast());
         } else {
+            dumpWebView(webView);
             super.onDropViewInstance(webView);
         }
     }
 
+    @SuppressLint("SetJavaScriptEnabled")
+    private void resumeWebview(WebView webView) {
+        webView.onResume();
+        webView.resumeTimers();
+        webView.getSettings().setJavaScriptEnabled(true);
+    }
 
     private void pauseBefores() {
         for (int i = 0; i < mWebviews.size(); i++) {
             final WebView view = mWebviews.get(i);
-            view.pauseTimers();
+            view.onPause();
+            view.getSettings().setJavaScriptEnabled(false);
         }
     }
 
@@ -428,7 +441,8 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
             if (getInstance().mWebviews != null && !getInstance().mWebviews.isEmpty()) {
                 for (int i = 0; i < getInstance().mWebviews.size(); i++) {
                     final WebView webView = getInstance().mWebviews.get(i);
-                    getInstance().destroyWebView(webView);
+                    getInstance().dumpWebView(webView);
+                    webView.destroy();
                 }
                 getInstance().mWebviews.clear();
             }
@@ -441,11 +455,17 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
      *
      * @param webView
      */
-    private void destroyWebView(WebView webView) {
+    private void dumpWebView(WebView webView) {
+        webView.stopLoading();
         webView.getSettings().setJavaScriptEnabled(false);
+        webView.clearCache(false);
+        webView.clearHistory();
         webView.loadUrl(BLANK_URL);
         webView.removeAllViews();
         callParentDropMe(webView);
+        webView.onPause();
+        webView.setWebChromeClient(null);
+        webView.setWebViewClient(null);
     }
 
 
@@ -489,8 +509,8 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
             //将webview队列仅存的一个设置为默认
             //赋值
             webView = mWebviews.get(0);
-            webView.resumeTimers();
-            webView.getSettings().setJavaScriptEnabled(true);
+            reConfigWebview(webView);
+            resumeWebview(webView);
         } else if (mWebviews.getLast().getParent() != null) {
             //非首次打开，文档中开启文档
             //休眠其它的webview
@@ -509,6 +529,16 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
             mWebviews.add(webView);
         }
         return webView;
+    }
+
+    private void reConfigWebview(AdvancedWebView webView) {
+        webView.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback callback) {
+                callback.invoke(origin, true, false);
+            }
+        });
+        webView.setWebViewClient(new AdvancedWebViewClient());
     }
 
     /**
@@ -544,6 +574,7 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
         webView.getSettings().setBuiltInZoomControls(true);
         webView.getSettings().setDisplayZoomControls(false);
         webView.getSettings().setJavaScriptEnabled(true);
+        webView.getSettings().setDomStorageEnabled(true);
         mWebViewConfig.configWebView(webView);
         reactContext.addLifecycleEventListener(webView);
         // Fixes broken full-screen modals/galleries due to body height being 0.
