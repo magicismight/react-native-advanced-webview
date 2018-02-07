@@ -21,7 +21,6 @@ import android.webkit.WebChromeClient;
 import android.webkit.WebView;
 
 import com.facebook.react.bridge.Arguments;
-import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
@@ -662,39 +661,6 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
     @ReactProp(name = "keyboardDisplayRequiresUserAction")
     public void setKeyboardDisplayRequiresUserAction(WebView root, boolean keyboardDisplayRequiresUserAction) {
         ((AdvancedWebView) root).setKeyboardDisplayRequiresUserAction(keyboardDisplayRequiresUserAction);
-    }
-
-    /**
-     * 可以在程序启动时，初始化webview 以提高第一次打开时的速度，如果初始化webview失败会有exception抛出
-     * 成功时返回true 失败返回false
-     *
-     * @param reactContext
-     * @param promise
-     */
-    @ReactMethod
-    public void initFirstWebview(ThemedReactContext reactContext, Promise promise) {
-        if (reactContext == null) {
-            promise.resolve(false);
-            return;
-        }
-        if (mWebviews == null || mWebviews.isEmpty()) {
-            AdvancedWebView preWebview = initWebview(reactContext);
-            if (preWebview != null) {
-                dumpWebView(preWebview);
-                if (mWebviews == null) {
-                    mWebviews = new LinkedList<>();
-                }
-                mWebviews.add(preWebview);
-                promise.resolve(true);
-            } else {
-                promise.resolve(false);
-                Throwable throwable = new Throwable("init webview err!");
-                throw new IllegalArgumentException(throwable);
-            }
-        } else {
-            promise.resolve(true);
-            return;
-        }
     }
 
     /**
