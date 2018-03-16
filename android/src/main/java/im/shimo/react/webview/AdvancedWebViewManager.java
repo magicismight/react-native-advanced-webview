@@ -18,6 +18,7 @@ import android.view.inputmethod.InputMethodManager;
 import android.webkit.GeolocationPermissions;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
+import android.webkit.WebSettings;
 import android.webkit.WebView;
 
 import com.facebook.react.bridge.Arguments;
@@ -26,7 +27,6 @@ import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.ReadableMapKeySetIterator;
 import com.facebook.react.bridge.WritableMap;
-import com.facebook.react.common.build.ReactBuildConfig;
 import com.facebook.react.modules.core.DeviceEventManagerModule.RCTDeviceEventEmitter;
 import com.facebook.react.uimanager.NativeViewHierarchyManager;
 import com.facebook.react.uimanager.ThemedReactContext;
@@ -99,6 +99,14 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
             "})()";
     private LinkedHashMap<Integer, String> mMenuIdTitles;
     private ArrayList<String> mWhiteList;
+    /**
+     * 手动打开debug的标记，当遇到prop设置时，以prop设置为准
+     */
+    public static boolean DEBUG_MODEL = false;
+    /**
+     * prop设置参数
+     */
+    private int mEnvValue;
 
     public AdvancedWebViewManager() {
         super();
@@ -172,6 +180,19 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
                             return baseConnet.sendKeyEvent(event);
                         } else {
                             return super.sendKeyEvent(event);
+                        }
+                    }
+
+                    @Override
+                    public boolean finishComposingText() {
+                        try {
+                            return super.finishComposingText();
+                        } catch (Exception e) {
+                            return true;
+                        } finally {
+                            if (baseConnet != null) {
+                                return baseConnet.finishComposingText();
+                            }
                         }
                     }
                 };
@@ -259,6 +280,7 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
          */
         private int mVisibility = -1;
 
+
         @Override
         protected void onWindowVisibilityChanged(int visibility) {
             super.onWindowVisibilityChanged(visibility);
@@ -268,6 +290,13 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
                     onResume();
                     resumeTimers();
                     getSettings().setJavaScriptEnabled(true);
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+                        if (getInstance().mEnvValue == 1 || DEBUG_MODEL || BuildConfig.DEBUG) {
+                            WebView.setWebContentsDebuggingEnabled(true);
+                        } else {
+                            WebView.setWebContentsDebuggingEnabled(false);
+                        }
+                    }
                 } else {
                     //切入后台释放cpu
                     onPause();
@@ -333,7 +362,6 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
             }
         }
 
-
         private void configMenuItem(Menu menu) {
             int index = 0;
             LinkedHashMap<Integer, String> menuIdTitles = getInstance().getMenuIdTitles();
@@ -356,6 +384,7 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
                 index++;
             }
         }
+
 
         /**
          * 白名单的保留
@@ -388,6 +417,23 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
             }
         }
 
+    }
+
+    @ReactProp(name = "webviewDebugEnabledWhenDev", defaultInt = 0)
+    public void setWebviewDebugModel(WebView view, int env) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+            if (env == 1) {
+                WebView.setWebContentsDebuggingEnabled(true);
+                DEBUG_MODEL = true;
+            } else {
+                if (mEnvValue == 1) {
+                    //从Dev环境切回别的环境，这个值有可能会变化
+                    WebView.setWebContentsDebuggingEnabled(false);
+                    DEBUG_MODEL = false;
+                }
+            }
+        }
+        mEnvValue = env;
     }
 
 
@@ -582,8 +628,12 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
                 new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.MATCH_PARENT));
 
-        if (ReactBuildConfig.DEBUG && Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-            WebView.setWebContentsDebuggingEnabled(true);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+            if (mEnvValue == 1 || DEBUG_MODEL || BuildConfig.DEBUG) {
+                WebView.setWebContentsDebuggingEnabled(true);
+            } else {
+                WebView.setWebContentsDebuggingEnabled(false);
+            }
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
@@ -592,6 +642,9 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
         } else {
             // older android version, disable hardware acceleration
             webView.setLayerType(WebView.LAYER_TYPE_SOFTWARE, null);
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            webView.getSettings().setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
         }
         return webView;
     }
