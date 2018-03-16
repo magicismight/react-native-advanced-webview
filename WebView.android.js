@@ -7,11 +7,11 @@ export default class extends WebView {
     static displayName = 'AdvancedWebView';
 
     static propTypes = {
+        ...WebView.propTypes,
         keyboardDisplayRequiresUserAction: PropTypes.bool,
         allowFileAccessFromFileURLs: PropTypes.bool,
         hideAccessory: PropTypes.bool,
-        webviewDebugEnabledWhenDev: PropTypes.number,
-        ...WebView.propTypes
+        webviewDebugEnabledWhenDev: PropTypes.number
     };
 
     goForward = () => {
