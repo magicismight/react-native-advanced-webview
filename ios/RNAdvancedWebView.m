@@ -53,8 +53,7 @@ NSString *const RNAdvancedWebViewHtmlType = @"Apple Web Archive pasteboard type"
 {
     WKWebView *_webView;
     NSString *_injectedJavaScript;
-    CGPoint _oldOffset;
-    id<UIScrollViewDelegate> _originScrollDelegate;
+    CGPoint _originOffset;
 }
 
 - (instancetype)initWithFrame:(CGRect)frame
@@ -67,10 +66,10 @@ NSString *const RNAdvancedWebViewHtmlType = @"Apple Web Archive pasteboard type"
         _validSchemes = @[@"http", @"https", @"file", @"ftp", @"ws"];
         
         [[NSNotificationCenter defaultCenter] addObserver:self
-                                                 selector:@selector(keyboardWasShown:)
+                                                 selector:@selector(keyboardDidShow:)
                                                      name:UIKeyboardDidShowNotification object:nil];
         [[NSNotificationCenter defaultCenter] addObserver:self
-                                                 selector:@selector(keyboardWillShown:)
+                                                 selector:@selector(keyboardWillShow:)
                                                      name:UIKeyboardWillShowNotification object:nil];
     }
     return self;
@@ -125,23 +124,21 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
 
 
 
-- (void)keyboardWillShown:(NSNotification*)aNotification
+- (void)keyboardWillShow:(NSNotification*)aNotification
 {
     if (_disableKeyboardAdjust) {
-        _originScrollDelegate = _webView.scrollView.delegate;
-        _oldOffset = _webView.scrollView.contentOffset;
+        _originOffset = _webView.scrollView.contentOffset;
         _webView.scrollView.delegate = self;
     }
 }
 
-- (void)keyboardWasShown:(NSNotification*)aNotification
+- (void)keyboardDidShow:(NSNotification*)aNotification
 {
-    _webView.scrollView.delegate = _originScrollDelegate;
-    _originScrollDelegate = nil;
+    _webView.scrollView.delegate = nil;
 }
 
 - (void)scrollViewDidScroll:(UIScrollView *)scrollView {
-    scrollView.contentOffset = _oldOffset;
+    scrollView.contentOffset = _originOffset;
 }
 
 - (void)loadRequest:(NSURLRequest *)request
