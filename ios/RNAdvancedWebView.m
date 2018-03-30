@@ -65,12 +65,10 @@ NSString *const RNAdvancedWebViewHtmlType = @"Apple Web Archive pasteboard type"
         _contentInsetAdjustmentBehavior = 0;
         _validSchemes = @[@"http", @"https", @"file", @"ftp", @"ws"];
         
+
         [[NSNotificationCenter defaultCenter] addObserver:self
-                                                 selector:@selector(keyboardDidShow:)
-                                                     name:UIKeyboardDidShowNotification object:nil];
-        [[NSNotificationCenter defaultCenter] addObserver:self
-                                                 selector:@selector(keyboardWillShow:)
-                                                     name:UIKeyboardWillShowNotification object:nil];
+                                                 selector:@selector(keyboardWillChange:)
+                                                     name:UIKeyboardWillChangeFrameNotification object:nil];
     }
     return self;
 }
@@ -112,10 +110,7 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
                                                  selector:@selector(pasteboardChangedNotification:)
                                                      name:UIPasteboardChangedNotification
                                                    object:nil];
-        [[NSNotificationCenter defaultCenter] addObserver:self
-                                                 selector:@selector(pasteboardChangedNotification:)
-                                                     name:UIApplicationDidBecomeActiveNotification
-                                                   object:nil];
+
         [self injectDataTransferGetData];
         [self addSubview:_webView];
     }
@@ -124,21 +119,21 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
 
 
 
-- (void)keyboardWillShow:(NSNotification*)aNotification
+- (void)keyboardWillChange:(NSNotification*)aNotification
 {
     if (_disableKeyboardAdjust) {
+        // Disable Keyboard push up WebView.
         _originOffset = _webView.scrollView.contentOffset;
         _webView.scrollView.delegate = self;
     }
 }
 
-- (void)keyboardDidShow:(NSNotification*)aNotification
-{
-    _webView.scrollView.delegate = nil;
-}
-
 - (void)scrollViewDidScroll:(UIScrollView *)scrollView {
-    scrollView.contentOffset = _originOffset;
+    if (scrollView == _webView.scrollView) {
+        // Reset WebView's scrollView
+        scrollView.contentOffset = _originOffset;
+        scrollView.delegate = nil;
+    }
 }
 
 - (void)loadRequest:(NSURLRequest *)request
