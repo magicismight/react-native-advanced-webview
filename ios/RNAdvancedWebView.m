@@ -678,18 +678,7 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
 }
 
 - (void)doKeyboardDisplayAutomatically {
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-        // support keyboardDisplayRequiresUserAction
-        SEL sel = sel_getUid("_startAssistingNode:userIsInteracting:blurPreviousNode:userObject:");
-        Class WKContentView = NSClassFromString(@"WKContentView");
-        Method method = class_getInstanceMethod(WKContentView, sel);
-        IMP originalImp = method_getImplementation(method);
-        IMP imp = imp_implementationWithBlock(^void(id me, void* arg0, BOOL arg1, BOOL arg2, id arg3) {
-            ((void (*)(id, SEL, void*, BOOL, BOOL, id))originalImp)(me, sel, arg0, TRUE, arg2, arg3);
         });
-        method_setImplementation(method, imp);
-    });
 }
 
 /**
