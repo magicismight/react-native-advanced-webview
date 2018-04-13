@@ -54,6 +54,8 @@ NSString *const RNAdvancedWebViewHtmlType = @"Apple Web Archive pasteboard type"
     WKWebView *_webView;
     NSString *_injectedJavaScript;
     CGPoint _originOffset;
+    BOOL _navigationFinished;
+    NSMutableArray <NSString *>* _pendingMessages;
 }
 
 - (instancetype)initWithFrame:(CGRect)frame
@@ -65,7 +67,7 @@ NSString *const RNAdvancedWebViewHtmlType = @"Apple Web Archive pasteboard type"
         _contentInsetAdjustmentBehavior = 0;
         _validSchemes = @[@"http", @"https", @"file", @"ftp", @"ws"];
         
-
+        _pendingMessages = [[NSMutableArray alloc] init];
         [[NSNotificationCenter defaultCenter] addObserver:self
                                                  selector:@selector(keyboardWillChange:)
                                                      name:UIKeyboardWillChangeFrameNotification object:nil];
@@ -192,14 +194,19 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
 
 - (void)postMessage:(NSString *)message
 {
-    NSDictionary *eventInitDict = @{
-                                    @"data": message,
-                                    };
-    NSString *source = [NSString
-                        stringWithFormat:@"document.dispatchEvent(new MessageEvent('message', %@));",
-                        RCTJSONStringify(eventInitDict, NULL)
-                        ];
-    [_webView evaluateJavaScript:source completionHandler:nil];
+    if (_navigationFinished) {
+        NSDictionary *eventInitDict = @{
+                                        @"data": message,
+                                        };
+        NSString *source = [NSString
+                            stringWithFormat:@"document.dispatchEvent(new MessageEvent('message', %@));",
+                            RCTJSONStringify(eventInitDict, NULL)
+                            ];
+        [_webView evaluateJavaScript:source completionHandler:nil];
+    } else {
+        [_pendingMessages addObject:message];
+    }
+
 }
 
 - (void)injectJavaScript:(NSString *)script
@@ -524,6 +531,11 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
 
 - (void)webView:(WKWebView *)webView didFinishNavigation:(__unused WKNavigation *)navigation
 {
+    _navigationFinished = YES;
+    [_pendingMessages enumerateObjectsUsingBlock:^(NSString * message, NSUInteger idx, BOOL * _Nonnull stop) {
+        [self postMessage:message];
+    }];
+    
     if (self.messagingEnabled) {
         NSString *source = [NSString stringWithFormat:
                             @"(function() {"
