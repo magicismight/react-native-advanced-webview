@@ -132,8 +132,11 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
 
 - (void)scrollViewDidScroll:(UIScrollView *)scrollView {
     if (scrollView == _webView.scrollView) {
-        // Reset WebView's scrollView
-        scrollView.contentOffset = _originOffset;
+        float height = scrollView.frame.size.height;
+        if (_originOffset.y + height <= scrollView.contentSize.height) {
+            // Reset WebView's scrollView
+            scrollView.contentOffset = _originOffset;
+        }
         scrollView.delegate = nil;
     }
 }
