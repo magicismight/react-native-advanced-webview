@@ -64,7 +64,6 @@ NSString *const RNAdvancedWebViewHtmlType = @"Apple Web Archive pasteboard type"
     if (self) {
         _hideAccessory = NO;
         _keyboardDisplayRequiresUserAction = NO;
-        _contentInsetAdjustmentBehavior = 0;
         _validSchemes = @[@"http", @"https", @"file", @"ftp", @"ws"];
         
         _pendingMessages = [[NSMutableArray alloc] init];
@@ -288,17 +287,6 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
     [RCTView autoAdjustInsetsForView:self
                       withScrollView:_webView.scrollView
                         updateOffset:NO];
-}
-
-- (void)setContentInsetAdjustmentBehavior:(NSInteger)contentInsetAdjustmentBehavior
-{
-    if (_contentInsetAdjustmentBehavior == contentInsetAdjustmentBehavior) {
-        return;
-    }
-    _contentInsetAdjustmentBehavior = contentInsetAdjustmentBehavior;
-    if (@available(iOS 11.0, *)) {
-        _webView.scrollView.contentInsetAdjustmentBehavior = (UIScrollViewContentInsetAdjustmentBehavior)_contentInsetAdjustmentBehavior;
-    }
 }
 
 - (void)setBackgroundColor:(UIColor *)backgroundColor
