@@ -343,7 +343,9 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
             NSValue *value = [change objectForKey:NSKeyValueChangeNewKey];
             UIEdgeInsets contentInset = value.UIEdgeInsetsValue;
             if (!UIEdgeInsetsEqualToEdgeInsets(_contentInset, contentInset)) {
-                [self refreshContentInset];
+                [RCTView autoAdjustInsetsForView:self
+                                  withScrollView:_webView.scrollView
+                                    updateOffset:NO];
             }
         }
     }
