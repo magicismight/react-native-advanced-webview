@@ -36,6 +36,7 @@ RCT_REMAP_VIEW_PROPERTY(allowsBackForwardNavigationGestures, _webView.allowsBack
 RCT_REMAP_VIEW_PROPERTY(userAgent, _webView.customUserAgent, NSString)
 RCT_EXPORT_VIEW_PROPERTY(injectedJavaScript, NSString)
 RCT_EXPORT_VIEW_PROPERTY(openNewWindowInWebView, BOOL)
+RCT_EXPORT_VIEW_PROPERTY(contentInsetAdjustmentBehavior, NSInteger)
 RCT_EXPORT_VIEW_PROPERTY(disableKeyboardAdjust, BOOL)
 RCT_EXPORT_VIEW_PROPERTY(contentInset, UIEdgeInsets)
 RCT_EXPORT_VIEW_PROPERTY(automaticallyAdjustContentInsets, BOOL)

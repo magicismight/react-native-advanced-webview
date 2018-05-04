@@ -17,18 +17,21 @@
 + (void)load {
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
-        Method originMethod = class_getInstanceMethod(self, @selector(adjustedContentInset));
-        Method presentMethod = class_getInstanceMethod(self, @selector(shm_adjustedContentInset));
-        method_exchangeImplementations(originMethod, presentMethod);
+        if (@available(iOS 11.0, *)) {
+            Method originMethod = class_getInstanceMethod(self, @selector(adjustedContentInset));
+            Method presentMethod = class_getInstanceMethod(self, @selector(shm_adjustedContentInset));
+            method_exchangeImplementations(originMethod, presentMethod);
+        }
     });
 }
 
 - (UIEdgeInsets)shm_adjustedContentInset {
-    if ([self isKindOfClass:NSClassFromString(@"WKScrollView")]) {
-       return UIEdgeInsetsZero;
-    } else {
-        return [self shm_adjustedContentInset];
+    if (@available(iOS 11.0, *)) {
+        if (self.contentInsetAdjustmentBehavior == UIScrollViewContentInsetAdjustmentNever && [self isKindOfClass:NSClassFromString(@"WKScrollView")]) {
+            return UIEdgeInsetsZero;
+        }
     }
+    return [self shm_adjustedContentInset];
 }
 
 @end

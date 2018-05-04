@@ -64,9 +64,11 @@ NSString *const RNAdvancedWebViewHtmlType = @"Apple Web Archive pasteboard type"
     if (self) {
         _hideAccessory = NO;
         _keyboardDisplayRequiresUserAction = NO;
+        _contentInsetAdjustmentBehavior = 0;
         _validSchemes = @[@"http", @"https", @"file", @"ftp", @"ws"];
         
         _pendingMessages = [[NSMutableArray alloc] init];
+        
         [[NSNotificationCenter defaultCenter] addObserver:self
                                                  selector:@selector(keyboardWillChange:)
                                                      name:UIKeyboardWillChangeFrameNotification object:nil];
@@ -107,6 +109,8 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
         _webView.navigationDelegate = self;
         
         [_webView addObserver:self forKeyPath:@"estimatedProgress" options:NSKeyValueObservingOptionNew context:nil];
+        [_webView.scrollView addObserver:self forKeyPath:@"contentInset" options:NSKeyValueObservingOptionNew context:nil];
+        
         [[NSNotificationCenter defaultCenter] addObserver:self
                                                  selector:@selector(pasteboardChangedNotification:)
                                                      name:UIPasteboardChangedNotification
@@ -116,28 +120,6 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
         [self addSubview:_webView];
     }
     return self;
-}
-
-
-
-- (void)keyboardWillChange:(NSNotification*)aNotification
-{
-    if (_disableKeyboardAdjust) {
-        // Disable Keyboard push up WebView.
-        _originOffset = _webView.scrollView.contentOffset;
-        _webView.scrollView.delegate = self;
-    }
-}
-
-- (void)scrollViewDidScroll:(UIScrollView *)scrollView {
-    if (scrollView == _webView.scrollView) {
-        float height = scrollView.frame.size.height;
-        if (_originOffset.y + height <= scrollView.contentSize.height) {
-            // Reset WebView's scrollView
-            scrollView.contentOffset = _originOffset;
-        }
-        scrollView.delegate = nil;
-    }
 }
 
 - (void)loadRequest:(NSURLRequest *)request
@@ -289,6 +271,17 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
                         updateOffset:NO];
 }
 
+- (void)setContentInsetAdjustmentBehavior:(NSInteger)contentInsetAdjustmentBehavior
+{
+    if (_contentInsetAdjustmentBehavior == contentInsetAdjustmentBehavior) {
+        return;
+    }
+    _contentInsetAdjustmentBehavior = contentInsetAdjustmentBehavior;
+    if (@available(iOS 11.0, *)) {
+        _webView.scrollView.contentInsetAdjustmentBehavior = (UIScrollViewContentInsetAdjustmentBehavior)_contentInsetAdjustmentBehavior;
+    }
+}
+
 - (void)setBackgroundColor:(UIColor *)backgroundColor
 {
     CGFloat alpha = CGColorGetAlpha(backgroundColor.CGColor);
@@ -342,10 +335,17 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
                        context:(void *)context
 {
     if ([keyPath isEqualToString:@"estimatedProgress"]) {
-        if (!_onProgress) {
-            return;
+        if (_onProgress) {
+            _onProgress(@{@"progress": [change objectForKey:NSKeyValueChangeNewKey]});
         }
-        _onProgress(@{@"progress": [change objectForKey:NSKeyValueChangeNewKey]});
+    } else if ([keyPath isEqualToString:@"contentInset"]) {
+        if (!_automaticallyAdjustContentInsets) {
+            NSValue *value = [change objectForKey:NSKeyValueChangeNewKey];
+            UIEdgeInsets contentInset = value.UIEdgeInsetsValue;
+            if (!UIEdgeInsetsEqualToEdgeInsets(_contentInset, contentInset)) {
+                [self refreshContentInset];
+            }
+        }
     }
 }
 
@@ -649,6 +649,30 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
         }
     }
     return nil;
+}
+
+#pragma mark - Notification
+
+- (void)keyboardWillChange:(NSNotification*)aNotification
+{
+    if (_disableKeyboardAdjust) {
+        // Disable Keyboard push up WebView.
+        _originOffset = _webView.scrollView.contentOffset;
+        _webView.scrollView.delegate = self;
+    }
+}
+
+#pragma mark - UIScrollViewDelegate
+
+- (void)scrollViewDidScroll:(UIScrollView *)scrollView {
+    if (scrollView == _webView.scrollView) {
+        float height = scrollView.frame.size.height;
+        if (_originOffset.y + height <= scrollView.contentSize.height) {
+            // Reset WebView's scrollView
+            scrollView.contentOffset = _originOffset;
+        }
+        scrollView.delegate = nil;
+    }
 }
 
 #pragma mark - Private
