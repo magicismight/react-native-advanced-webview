@@ -322,6 +322,7 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
     [[NSNotificationCenter defaultCenter] removeObserver:self];
     @try {
         [_webView removeObserver:self forKeyPath:@"estimatedProgress"];
+        [_webView.scrollView removeObserver:self forKeyPath:@"contentInset"];
     }
     @catch (NSException * __unused exception) {}
     _webView = nil;
