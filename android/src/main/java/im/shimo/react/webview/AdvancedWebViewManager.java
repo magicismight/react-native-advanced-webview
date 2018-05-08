@@ -163,43 +163,44 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
                 outAttrs.actionLabel = null;
                 outAttrs.inputType = InputType.TYPE_NULL;
                 final InputConnection baseConnet = new BaseInputConnection(this, false);
-                InputConnectionWrapper inputConnectionWrapper = new InputConnectionWrapper(
-                        super.onCreateInputConnection(outAttrs), true) {
-                    @Override
-                    public boolean deleteSurroundingText(int beforeLength, int afterLength) {
-                        if (beforeLength == 1 && afterLength == 0) {
-                            return this.sendKeyEvent(new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
-                                    && this.sendKeyEvent(new KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DEL));
+                final InputConnection orignalConnet = super.onCreateInputConnection(outAttrs);
+                if(orignalConnet!=null) {
+                    InputConnectionWrapper inputConnectionWrapper = new InputConnectionWrapper(
+                            super.onCreateInputConnection(outAttrs), true) {
+                        @Override
+                        public boolean deleteSurroundingText(int beforeLength, int afterLength) {
+                            if (beforeLength == 1 && afterLength == 0) {
+                                return this.sendKeyEvent(new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
+                                        && this.sendKeyEvent(new KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DEL));
+                            }
+                            return super.deleteSurroundingText(beforeLength, afterLength);
                         }
-                        return super.deleteSurroundingText(beforeLength, afterLength);
-                    }
 
-                    @Override
-                    public boolean sendKeyEvent(KeyEvent event) {
-                        if (event.getKeyCode() == KeyEvent.KEYCODE_DEL) {
-                            return baseConnet.sendKeyEvent(event);
-                        } else {
-                            return super.sendKeyEvent(event);
-                        }
-                    }
-
-                    @Override
-                    public boolean finishComposingText() {
-                        try {
-                            return super.finishComposingText();
-                        } catch (Exception e) {
-                            return true;
-                        } finally {
-                            if (baseConnet != null) {
-                                return baseConnet.finishComposingText();
+                        @Override
+                        public boolean sendKeyEvent(KeyEvent event) {
+                            if (event.getKeyCode() == KeyEvent.KEYCODE_DEL) {
+                                return baseConnet.sendKeyEvent(event);
+                            } else {
+                                return super.sendKeyEvent(event);
                             }
                         }
-                    }
-                };
-                try {
+
+                        @Override
+                        public boolean finishComposingText() {
+                            try {
+                                return super.finishComposingText();
+                            } catch (Exception e) {
+                                return true;
+                            } finally {
+                                if (baseConnet != null) {
+                                    return baseConnet.finishComposingText();
+                                }
+                            }
+                        }
+                    };
                     return inputConnectionWrapper;
-                } catch (Exception e) {
-                    return super.onCreateInputConnection(outAttrs);
+                } else {
+                    return orignalConnet;
                 }
             } else {
                 return super.onCreateInputConnection(outAttrs);
