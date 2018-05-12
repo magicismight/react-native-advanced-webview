@@ -124,6 +124,7 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
 
 - (void)loadRequest:(NSURLRequest *)request
 {
+    _navigationFinished = NO;
     if (request.URL && _sendCookies) {
         NSDictionary *cookies = [NSHTTPCookie requestHeaderFieldsWithCookies:[[NSHTTPCookieStorage sharedHTTPCookieStorage] cookiesForURL:request.URL]];
         if ([cookies objectForKey:@"Cookie"]) {
@@ -137,6 +138,7 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
 
 - (void)goForward
 {
+    _navigationFinished = NO;
     [_webView goForward];
 }
 
@@ -148,6 +150,7 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
 
 - (void)goBack
 {
+    _navigationFinished = NO;
     [_webView goBack];
 }
 
@@ -163,6 +166,7 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
 
 - (void)reload
 {
+    _navigationFinished = NO;
     NSURLRequest *request = [RCTConvert NSURLRequest:self.source];
     if (request.URL && !_webView.URL.absoluteString.length) {
         [self loadRequest:request];
@@ -173,6 +177,7 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
 
 - (void)stopLoading
 {
+    _navigationFinished = NO;
     [_webView stopLoading];
 }
 
@@ -529,6 +534,7 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
     [_pendingMessages enumerateObjectsUsingBlock:^(NSString * message, NSUInteger idx, BOOL * _Nonnull stop) {
         [self postMessage:message];
     }];
+    _pendingMessages = [[NSMutableArray alloc] init];
     
     if (self.messagingEnabled) {
         NSString *source = [NSString stringWithFormat:
