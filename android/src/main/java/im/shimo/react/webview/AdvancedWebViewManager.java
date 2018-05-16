@@ -90,7 +90,7 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
             "   };" +
             "   var blur = HTMLElement.prototype.blur;" +
             "   HTMLElement.prototype.blur = function() {" +
-            "       if (isDescendant(document.activeElement, this)) {";
+            "       if (isDescendant(document.activeElement, this) || this === document.activeElement) {";
     private static String URL_KEYBOARD_C = ".hideKeyboard();" +
             "       }" +
             "       blur.call(this);" +
@@ -235,6 +235,7 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
                 mNativeModule.addUIBlock(new UIBlock() {
                     @Override
                     public void execute(NativeViewHierarchyManager nativeViewHierarchyManager) {
+                        AdvancedWebView.this.requestFocus();
                         mInputMethodManager.hideSoftInputFromWindow(AdvancedWebView.this.getWindowToken(), InputMethodManager.HIDE_NOT_ALWAYS);
                     }
                 });
