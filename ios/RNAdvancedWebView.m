@@ -115,7 +115,10 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
                                                  selector:@selector(pasteboardChangedNotification:)
                                                      name:UIPasteboardChangedNotification
                                                    object:nil];
-
+        [[NSNotificationCenter defaultCenter] addObserver:self
+                                                 selector:@selector(pasteboardChangedNotification:)
+                                                     name:UIApplicationDidBecomeActiveNotification
+                                                   object:nil];
         [self injectDataTransferGetData];
         [self addSubview:_webView];
     }
