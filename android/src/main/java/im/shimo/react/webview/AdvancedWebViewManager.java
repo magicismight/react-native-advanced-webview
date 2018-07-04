@@ -20,6 +20,7 @@ import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
+import android.webkit.WebViewClient;
 
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.ReactMethod;
@@ -149,6 +150,10 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
             super(reactContext);
             mNativeModule = reactContext.getNativeModule(UIManagerModule.class);
             mEventEmitter = reactContext.getJSModule(RCTDeviceEventEmitter.class);
+        }
+
+        public WebViewClient getWebViewClient() {
+            return mReactWebViewClient;
         }
 
         /**
@@ -455,6 +460,7 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
             mWebviews.remove(webView);
             //将最上层销毁
             dumpWebView(webView);
+            ((AdvancedWebViewClient) ((AdvancedWebView) webView).getWebViewClient()).mPendingMessages = new ArrayList<>();
             super.onDropViewInstance(webView);
             //设置下一层为默认webview
             //唤醒下一层
@@ -652,6 +658,21 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
     }
 
     protected class AdvancedWebViewClient extends ReactWebViewClient {
+        protected ArrayList<String> mPendingMessages = new ArrayList<>();
+        protected volatile boolean mPageFinished = false;
+
+        @Override
+        public void onPageFinished(WebView webView, String url) {
+            super.onPageFinished(webView, url);
+            mPageFinished = true;
+            AdvancedWebView reactWebView = (AdvancedWebView) webView;
+            reactWebView.linkBridge();
+
+            for (String message : mPendingMessages) {
+                webView.evaluateJavascript(message, null);
+            }
+            mPendingMessages.clear();
+        }
 
         @Override
         public void doUpdateVisitedHistory(WebView webView, String url, boolean isReload) {
@@ -681,7 +702,7 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
                 try {
                     JSONObject eventInitDict = new JSONObject();
                     eventInitDict.put("data", args.getString(0));
-                    root.evaluateJavascript("(function () {" +
+                    String message = "(function () {" +
                             "var event;" +
                             "var data = " + eventInitDict.toString() + ";" +
                             "try {" +
@@ -691,7 +712,13 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
                             "event.initMessageEvent('message', true, true, data.data, data.origin, data.lastEventId, data.source);" +
                             "}" +
                             "document.dispatchEvent(event);" +
-                            "})();", null);
+                            "})();";
+                    AdvancedWebViewClient webViewClient = (AdvancedWebViewClient)((AdvancedWebView) root).getWebViewClient();
+                    if (webViewClient.mPageFinished) {
+                        root.evaluateJavascript(message, null);
+                    } else {
+                        webViewClient.mPendingMessages.add(message);
+                    }
                 } catch (JSONException e) {
                     throw new RuntimeException(e);
                 }
