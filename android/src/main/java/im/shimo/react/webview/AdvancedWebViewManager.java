@@ -270,14 +270,18 @@ public class AdvancedWebViewManager extends ReactWebViewManager {
 
         @Override
         public void linkBridge() {
-            if (getOriginalUrl().equals(BLANK_URL)) {
-                return;
-            }
-            if (mMessagingEnabled) {
-                loadUrl(URL_A + BRIDGE_NAME + URL_B);
-            }
-            if (!mKeyboardDisplayRequiresUserAction) {
-                loadUrl(URL_KEYBOARD_A + BRIDGE_NAME + URL_KEYBOARD_B + BRIDGE_NAME + URL_KEYBOARD_C);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                if (getOriginalUrl().equals(BLANK_URL)) {
+                    return;
+                }
+                if (mMessagingEnabled) {
+                    loadUrl(URL_A + BRIDGE_NAME + URL_B);
+                }
+                if (!mKeyboardDisplayRequiresUserAction) {
+                    loadUrl(URL_KEYBOARD_A + BRIDGE_NAME + URL_KEYBOARD_B + BRIDGE_NAME + URL_KEYBOARD_C);
+                }
+            }else{
+                super.linkBridge();
             }
         }
 
